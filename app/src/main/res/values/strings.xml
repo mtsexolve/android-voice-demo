@@ -1,0 +1,42 @@
+<resources>
+    <string name="reg_status">Registration status: </string>
+    <string name="voip_registration_state_not_registered">Not Registered</string>
+    <string name="voip_registration_state_registering">Registering</string>
+    <string name="voip_registration_state_registered">Registered</string>
+    <string name="voip_registration_state_offline">Offline</string>
+    <string name="voip_registration_state_no_connection">No Connection</string>
+    <string name="voip_registration_state_error">Error</string>
+    <string name="activate_button">Activate</string>
+    <string name="title_activity_call">CallActivity</string>
+    <string name="settings_password">Password</string>
+    <string name="settings_hint_password">Enter password</string>
+    <string name="settings_number">User</string>
+    <string name="settings_token">Device push token</string>
+    <string name="settings_hint_number">Enter number</string>
+    <string name="settings_button_copy">Copy token to clipboard</string>
+    <string name="go_to_call">Go to call</string>
+    <string name="calls_card_accet_call">Accept</string>
+    <string name="calls_card_resume_call">Resume</string>
+    <string name="button_mute_call">Mute</string>
+    <string name="button_dtmf">DTMF</string>
+    <string name="button_speaker">Speaker</string>
+    <string name="button_new_call_add">New call</string>
+    <string name="button_end_call">End call</string>
+    <string name="button_transfer_call">Transfer</string>
+    <string name="bottom_navigation_dialer_title">Dialer</string>
+    <string name="bottom_navigation_settings_title">Settings</string>
+    <string name="navigation_ongoing_call_control">Control</string>
+    <string name="dialer_toast_activate">Activate your account</string>
+    <string name="dialer_toast_enter_number">Enter number</string>
+    <string name="registration_status_not_registered">Not registered</string>
+    <string name="default_token">No token received</string>
+    <string name="deactivate_button">Deactivate</string>
+    <string name="settings_invaild_login_details">Invalid login details</string>
+    <string name="settings_check_connection">Check your network connection</string>
+    <string name="top_bar_status_inprogress">in progress…</string>
+    <string name="call_screen_current_conference">conference:</string>
+    <string name="call_screen_current_all_on_hold">all on hold</string>
+    <string name="call_screen_current_call_ended">call ended</string>
+    <string name="settings_logs_button">Send logs</string>
+
+</resources>

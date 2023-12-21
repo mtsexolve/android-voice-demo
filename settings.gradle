@@ -1,0 +1,37 @@
+
+pluginManagement {
+
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+        // Configure the Maven repository address for the HMS Core SDK.
+        maven { url 'https://developer.huawei.com/repo/' }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Configure the Maven repository address for the HMS Core SDK.
+        maven { url 'https://developer.huawei.com/repo/' }
+        maven {
+            url = uri("https://maven.pkg.github.com/mtsexolve/mobile-voice-sdk")
+            credentials {
+                if(System.getenv("CI_GITHUB_TOKEN") != null && System.getenv("CI_GITHUB_USERNAME") != null) {
+                    username = System.getenv("CI_GITHUB_USERNAME")
+                    password = System.getenv("CI_GITHUB_TOKEN")
+                } else {
+                    def localProperties = new Properties()
+                    localProperties.load(new FileInputStream(file("local.properties")))
+                    username = localProperties.getProperty('GH_USERNAME')
+                    password = localProperties.getProperty('GH_TOKEN')
+                }
+            }
+        }
+    }
+}
+rootProject.name = "ExolveVoiceDemo"
+include ':app'
