@@ -17,7 +17,7 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
     application
 ) {
 
-    protected val telecomManager: TelecomManager = TelecomManager.getInstance(application)
+    protected val telecomManager: TelecomManager = TelecomManager.getInstance()
     private val initState: State by lazy { initializeState() }
 
     // StateFLow - state holder observable flow that emits current and new state to its collectors.

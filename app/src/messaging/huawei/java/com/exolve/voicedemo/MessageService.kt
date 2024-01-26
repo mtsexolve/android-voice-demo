@@ -24,7 +24,7 @@ class MessageService : HmsMessageService() {
             EXOLVE_MESSAGE_SERVICE, "HMS: (markedLog): onMessageReceived( messageId = ${p0?.messageId})" +
                 "messageType - ${p0?.messageType} , data = ${p0?.data}")
         p0?.let{
-            PushProvider.processPushNotification(context = this, data = it.toString())
+            PushProvider.processPushNotification(context = this, data = it.data.toString())
             CoroutineScope(Dispatchers.Main).launch {
                 Toast.makeText(
                     this@MessageService,
@@ -40,7 +40,7 @@ class MessageService : HmsMessageService() {
         Log.d(EXOLVE_MESSAGE_SERVICE, "onNewToken: HMS token = $p0")
         p0?.let{
             PushProvider.setPushToken(context = this, token = it, pushType = PushProvider.PushType.HMS)
-            TelecomManager.getInstance(this.application).setToken(it)
+            TelecomManager.getInstance().setToken(it)
         }
     }
 
@@ -68,7 +68,7 @@ class MessageService : HmsMessageService() {
                             EXOLVE_MESSAGE_SERVICE,
                             "HMS: enableMessageService: get token: $pushtoken"
                         )
-                        TelecomManager.getInstance(context).setToken(pushtoken)
+                        TelecomManager.getInstance().setToken(pushtoken)
                     }
                 } catch (e: Exception) {
                     Log.d(

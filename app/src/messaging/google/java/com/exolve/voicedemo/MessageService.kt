@@ -1,6 +1,6 @@
 package com.exolve.voicedemo
 
-import android.app.Application
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import com.exolve.voicedemo.core.telecom.PushProvider
@@ -34,12 +34,12 @@ class MessageService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         PushProvider.setPushToken(context = this, token = token, pushType = PushProvider.PushType.FIREBASE)
-        TelecomManager.getInstance(this.application).setToken(token)
+        TelecomManager.getInstance().setToken(token)
         Log.d(EXOLVE_MESSAGE_SERVICE, "onNewToken: token = $token")
     }
 
     companion object {
-        fun enable(context: Application): Boolean {
+        fun enable(context: Context): Boolean {
             var result = false
             CoroutineScope(Dispatchers.IO).launch {
                 FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
@@ -56,7 +56,7 @@ class MessageService : FirebaseMessagingService() {
                         EXOLVE_MESSAGE_SERVICE,
                         "FCM: message service is enabled, token is $token"
                     )
-                    TelecomManager.getInstance(context).setToken(token)
+                    TelecomManager.getInstance().setToken(token)
                     result = true
                 })
             }

@@ -13,25 +13,24 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.exolve.voicedemo.app.navigation.SetupCallNavigation
 import com.exolve.voicedemo.core.telecom.PushProvider
+import com.exolve.voicedemo.core.telecom.TelecomContract
 import com.exolve.voicedemo.core.telecom.TelecomManager
-import com.exolve.voicedemo.core.uiCommons.ActivitiesInstantiatorContract
-import com.exolve.voicedemo.core.uiCommons.CallsActivityManager
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
 import com.exolve.voicedemo.features.call.CallContract
 import com.exolve.voicedemo.features.call.CallViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
@@ -61,14 +60,33 @@ class CallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        telecomManager = TelecomManager.getInstance(this.application)
+        telecomManager = TelecomManager.getInstance()
+        if (telecomManager.getCalls().isEmpty()) {
+            finish()
+            return
+        }
         configRequiredPermissions()
         intent?.let {
             Log.d(CALL_ACTIVITY, "Start with call accepting, intent = ${intent.data} action ${intent.action}")
-
             //Handle Android 12 (API 31) trampoline restrictions
             // https://developer.android.com/about/versions/12/behavior-changes-12#notification-trampolines
             PushProvider.broadcastCallIntent(this, intent)
+        }
+        lifecycleScope.launch {
+            viewModel.event.collect {
+                handleUiEvent(it)
+            }
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            telecomManager.telecomEvents.collect { telecomEvent ->
+                if(telecomEvent is TelecomContract.CallEvent.OnCallTerminated ||
+                    telecomEvent is TelecomContract.CallEvent.OnCallError) {
+                    if(telecomManager.getCalls().isEmpty()) {
+                        delay(1.seconds)
+                        finish()
+                    }
+                }
+            }
         }
         setContent {
             AndroidVoiceExampleTheme {
@@ -79,27 +97,6 @@ class CallActivity : ComponentActivity() {
                     OngoingCallScreen(ongoingCallViewModel = viewModel)
                 }
             }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        lifecycleScope.launch {
-            CallsActivityManager.getInstance(this@CallActivity.application, telecomManager)
-                .activityEvents().collect {
-                if (it is ActivitiesInstantiatorContract.Event.CallActivityMustFinished) {
-                    delay(1.seconds)
-                    finish()
-                }
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.event.collect {
-                handleUiEvent(it)
-            }
-        }
-        if (telecomManager.getCalls().isEmpty()) {
-            finish()
         }
     }
 

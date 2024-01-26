@@ -175,13 +175,16 @@ class TelecomManager(private var context: Application) {
 
     companion object {
         private var INSTANCE: TelecomManager? = null
-        fun getInstance(context: Application): TelecomManager {
+
+        fun initialize(context: Application) {
             if (INSTANCE == null) {
                 synchronized(this) {
                     INSTANCE = TelecomManager(context)
-                    Log.d(TELECOM_MANAGER, "getInstance: $INSTANCE")
+                    Log.d(TELECOM_MANAGER, "initialize: $INSTANCE")
                 }
             }
+        }
+        fun getInstance(): TelecomManager {
             return INSTANCE!!
         }
     }
