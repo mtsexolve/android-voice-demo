@@ -3,11 +3,12 @@ package com.exolve.voicedemo.core.telecom
 import android.app.Application
 import android.util.Log
 import com.exolve.voicedemo.core.models.Account
-import com.exolve.voicedemo.core.repositories.AccountRepository
+import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicesdk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import com.exolve.voicedemo.app.activities.*;
+import java.util.function.Consumer
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -18,15 +19,25 @@ class TelecomManager(private var context: Application) {
     private val _telecomEvents = MutableSharedFlow<TelecomEvent>(replay = 0, extraBufferCapacity = 10)
     val telecomEvents: SharedFlow<TelecomEvent> = _telecomEvents.asSharedFlow()
 
+    private val _contactNameResolver = ContactNameResolver { phoneNumber, resultHandler ->
+            CoroutineScope(Dispatchers.Main).launch {
+                if (phoneNumber == "84997090111") {
+                    resultHandler!!.accept("Telecom company")
+                }
+            }
+        }
+
     private val configuration: Configuration = Configuration
         .builder(context)
         .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
         .enableSipTrace(true)
         .enableNotifications(true)
+        .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
         .notificationConfiguration(
             NotificationConfiguration().apply {
                 callActivityClass = CallActivity::class.java.canonicalName
                 appActivityClass = MainActivity::class.java.canonicalName
+                setContactNameResolver(_contactNameResolver)
             }
         )
         .build()
@@ -51,6 +62,12 @@ class TelecomManager(private var context: Application) {
         }
     }
 
+    fun getVersionDescription(): String {
+        val versionInfo : VersionInfo = Communicator.getInstance().getVersionInfo()
+        return "SDK ver.${versionInfo.buildVersion} env: ${if(versionInfo.environment.isNotEmpty()) versionInfo.environment else "default"}"
+    }
+
+
     suspend fun emitTelecomEvent(event: TelecomEvent) {
         _telecomEvents.emit(event)
     }
@@ -59,7 +76,7 @@ class TelecomManager(private var context: Application) {
         Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel?.number}")
         if (Communicator.getInstance().callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
-                accountModel?.let {  AccountRepository(context).saveAccountDetails(accountModel)}
+                accountModel?.let {  SettingsRepository(context).saveAccountDetails(accountModel)}
                 Communicator.getInstance().run {
                     callClient.register(accountModel?.number ?: " ", accountModel?.password ?: " ")
                 }
@@ -161,6 +178,15 @@ class TelecomManager(private var context: Application) {
     fun setForegroundState() {
         Log.d(TELECOM_MANAGER, "setForegroundState")
         Communicator.getInstance().setApplicationState(ApplicationState.FOREGROUND);
+    }
+
+    fun isBackgroundRunningEnabled(): Boolean {
+        return Communicator.getInstance().configurationManager.isBackgroundRunningEnabled
+    }
+
+    fun setBackgroundRunningEnabled(enable: Boolean) {
+        Communicator.getInstance().configurationManager.isBackgroundRunningEnabled = enable
+        SettingsRepository(context).setBackgroundRunningEnabled(enable)
     }
 
     fun setToken(token: String) {

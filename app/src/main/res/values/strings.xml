@@ -38,5 +38,6 @@
     <string name="call_screen_current_all_on_hold">all on hold</string>
     <string name="call_screen_current_call_ended">call ended</string>
     <string name="settings_logs_button">Send logs</string>
+    <string name="background_running">Background running</string>
 
 </resources>

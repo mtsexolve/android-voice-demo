@@ -13,7 +13,9 @@ class SettingsContract {
         val number: String,
         val password: String,
         val token: String,
+        val versionDescription: String,
         val registrationState: RegistrationState,
+        val voipBackgroundRunning: Boolean
     ) : UiState
     // Events that user performs
     @Immutable
@@ -24,6 +26,7 @@ class SettingsContract {
         @Immutable data class PasswordTexFieldChanged(override val textState: String) : Event(), FillableLoginField
         @Immutable object OnSendLogsClicked : Event()
         @Immutable object OnCopyButtonClicked : Event()
+        @Immutable data class OnBackgroundRunningChanged(val enabled: Boolean) : Event()
     }
     //Side effects
     @Immutable

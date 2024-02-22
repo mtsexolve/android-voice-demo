@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.app.CallApplication
 import com.exolve.voicedemo.core.models.Account
-import com.exolve.voicedemo.core.repositories.AccountRepository
+import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicedemo.core.telecom.TelecomContract.RegistrationEvent
 import com.exolve.voicedemo.core.telecom.TelecomEvent
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
@@ -25,7 +25,7 @@ const val SETTINGS_VIEWMODEL = "SettingsViewModel"
 class SettingsViewModel(application: Application) :
     BaseViewModel<SettingsContract.Event, SettingsContract.State, SettingsContract.Effect>(application) {
     private val sharingProvider = SharingProvider(application)
-    private val accountRepository: AccountRepository = AccountRepository(context = application)
+    private val accountRepository: SettingsRepository = SettingsRepository(context = application)
 
     init {
         Log.d(SETTINGS_VIEWMODEL, "init: telecomManager = $telecomManager" )
@@ -64,6 +64,9 @@ class SettingsViewModel(application: Application) :
                     Log.d(SETTINGS_VIEWMODEL, "setState() loaded ")
                 }
             }
+            launch {
+                setState { copy(versionDescription = telecomManager.getVersionDescription() ) }
+            }
         }
     }
 
@@ -73,7 +76,9 @@ class SettingsViewModel(application: Application) :
             number = "" ,
             password = "",
             token = getApplication<CallApplication>().getString(R.string.default_token).lowercase(),
+            versionDescription = "",
             registrationState = telecomManager.getRegistrationState(),
+            voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled()
         )
     }
 
@@ -94,6 +99,9 @@ class SettingsViewModel(application: Application) :
             is SettingsContract.FillableLoginField -> { updateTextFieldState(event, event.textState) }
             is SettingsContract.Event.OnSendLogsClicked -> { sharingProvider.share("Share sdk logs") }
             is SettingsContract.Event.OnCopyButtonClicked -> { copyTokenToClipBoard() }
+            is SettingsContract.Event.OnBackgroundRunningChanged -> {  enableBackgroundRunning(event.enabled)
+                setState { copy(voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled()) }
+            }
             else -> {}
         }
     }
@@ -132,6 +140,10 @@ class SettingsViewModel(application: Application) :
                 is SettingsContract.Event.PasswordTexFieldChanged -> { setState { copy(password = newState) } }
                 else -> {}
         }
+    }
+
+    private fun enableBackgroundRunning(enable: Boolean) {
+        telecomManager.setBackgroundRunningEnabled(enable)
     }
 
     override fun onCleared() {

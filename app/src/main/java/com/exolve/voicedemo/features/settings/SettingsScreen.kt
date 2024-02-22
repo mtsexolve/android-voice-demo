@@ -53,7 +53,9 @@ fun SettingsScreen(
         number = state.number,
         password = state.password,
         token = state.token,
+        versionDescription = state.versionDescription,
         registrationState = state.registrationState,
+        voipBackgroundRunning = state.voipBackgroundRunning,
     )
 }
 
@@ -67,7 +69,9 @@ fun SettingsContent(
     number: String,
     password: String,
     token: String,
+    versionDescription: String,
     registrationState: RegistrationState,
+    voipBackgroundRunning: Boolean,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -84,45 +88,47 @@ fun SettingsContent(
                     password = password,
                     token = token,
                     registrationState = registrationState,
+                    voipBackgroundRunning = voipBackgroundRunning,
                 )
 
             }
         val isPressed = remember { mutableStateOf(false) }
-        Row(
+
+        Column(
             Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomEnd),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = bundleId,
+                text = "${bundleId}, ${versionDescription}",
                 style = TextStyle(
                     color =  colorResource(id = R.color.mts_text_grey),
                     fontFamily = FontFamily(Font(R.font.mtscompact_regular))
                 ),
                 modifier = Modifier
-                    //.align(Alignment.BottomEnd)
                     .padding(bottom = 4.dp),
             )
-            OutlinedButton(
-                onClick = { SharingProvider(context.applicationContext).share("Logs") },
-                modifier = Modifier
-                    //.align(Alignment.BottomEnd)
-                    .padding(bottom = 4.dp),
-                colors = ButtonDefaults.buttonColors(colorResource(id = R.color.white)),
-                border = BorderStroke(1.dp, colorResource(id = R.color.white)),
-                contentPadding = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 0.dp),
-            ) {
-                Text(
-                    text = AnnotatedString(stringResource(id = R.string.settings_logs_button)),
-                    style = TextStyle(
-                        textDecoration = TextDecoration.Underline,
-                        color = if (isPressed.value) colorResource(id = R.color.black)
-                        else colorResource(id = R.color.mts_text_grey),
-                        fontFamily = FontFamily(Font(R.font.mtscompact_regular))
-                    ),
-                )
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Absolute.Right) {
+                OutlinedButton(
+                    onClick = { SharingProvider(context.applicationContext).share("Logs") },
+                    modifier = Modifier
+                        .padding(bottom = 4.dp),
+                    colors = ButtonDefaults.buttonColors(colorResource(id = R.color.white)),
+                    border = BorderStroke(1.dp, colorResource(id = R.color.white)),
+                    contentPadding = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 0.dp),
+                ) {
+                    Text(
+                        text = AnnotatedString(stringResource(id = R.string.settings_logs_button)),
+                        style = TextStyle(
+                            textDecoration = TextDecoration.Underline,
+                            color = if (isPressed.value) colorResource(id = R.color.black)
+                            else colorResource(id = R.color.mts_text_grey),
+                            fontFamily = FontFamily(Font(R.font.mtscompact_regular))
+                        ),
+                    )
+                }
             }
         }
     }
@@ -136,6 +142,7 @@ fun AccountView(
     password: String,
     token: String,
     registrationState: RegistrationState,
+    voipBackgroundRunning: Boolean,
 ) {
     val customTextSelectionColor = TextSelectionColors(
         handleColor = colorResource(id = R.color.mts_red),
@@ -155,6 +162,7 @@ fun AccountView(
             copyTokenButton,
             tokenEditText,
             tokenHeader,
+            bgModeSwitchLayout,
         ) = createRefs()
 
         Text(
@@ -333,6 +341,38 @@ fun AccountView(
                     fontFamily = FontFamily(Font(R.font.mtscompact_bold)),
                 ),
                 modifier = Modifier.padding(vertical = 14.dp)
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.constrainAs(bgModeSwitchLayout) {
+                top.linkTo(copyTokenButton.bottom, margin = 8.dp)
+                start.linkTo(parent.start)
+            }
+
+        ) {
+            Text(
+                style = TextStyle(
+                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                    fontSize = 14.sp,
+                    color = colorResource(
+                        id = R.color.mts_text_grey
+                    )
+                ),
+                text = stringResource(id = R.string.background_running)
+            )
+
+            Switch(
+                modifier = Modifier
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("button_settings_bg_mode_switch"),
+                checked = voipBackgroundRunning,
+                onCheckedChange = {
+                    onEvent(SettingsContract.Event.OnBackgroundRunningChanged(it))
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = colorResource(id = R.color.mts_red),
+                )
             )
         }
 

@@ -22,13 +22,13 @@ class MessageService : HmsMessageService() {
         super.onMessageReceived(p0)
         Log.d(
             EXOLVE_MESSAGE_SERVICE, "HMS: (markedLog): onMessageReceived( messageId = ${p0?.messageId})" +
-                "messageType - ${p0?.messageType} , data = ${p0?.data}")
-        p0?.let{
+                "messageType - ${p0?.messageType} , data = ${p0?.data}, priority = ${p0?.urgency}")
+        p0?.let {
             PushProvider.processPushNotification(context = this, data = it.data.toString())
             CoroutineScope(Dispatchers.Main).launch {
                 Toast.makeText(
                     this@MessageService,
-                    "Push received! Data: ${it.data}",
+                    "Push! pr=${it.urgency} Data: ${it.data}",
                     Toast.LENGTH_LONG
                 ).show()
             }

@@ -20,12 +20,12 @@ class MessageService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         Log.d(
             EXOLVE_MESSAGE_SERVICE, "(markedLog): onMessageReceived( messageId = ${message.messageId})" +
-                "sender - ${message.senderId} , rawData = ${message.rawData}, data = ${message.data}")
+                "sender - ${message.senderId} , rawData = ${message.rawData}, data = ${message.data}, priority = ${message.priority}")
         PushProvider.processPushNotification(context = this, data = message.data.toString())
         CoroutineScope(Dispatchers.Main).launch {
             Toast.makeText(
                 this@MessageService,
-                "Push received! Data: ${message.data}",
+                "Push, pr=${message.priority}, Data: ${message.data}",
                 Toast.LENGTH_LONG
             ).show()
         }
