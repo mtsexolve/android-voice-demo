@@ -1,5 +1,6 @@
 package com.exolve.voicedemo.core.telecom
 
+import androidx.compose.runtime.Immutable
 import com.exolve.voicesdk.CallError
 import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.RegistrationError
@@ -65,5 +66,8 @@ class TelecomContract {
     sealed class HardwareEvent : TelecomEvent {
         data class OnCallMuted(val call: Call) : HardwareEvent()
         data class OnSpeakerActivated(val isActivated: Boolean) : HardwareEvent()
+        @Immutable
+        object OnAudioRouteChanged : HardwareEvent()
+
     }
 }

@@ -8,7 +8,7 @@ import com.exolve.voicesdk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import com.exolve.voicedemo.app.activities.*;
-import java.util.function.Consumer
+import com.exolve.voicesdk.platform.AudioRoute
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -32,6 +32,7 @@ class TelecomManager(private var context: Application) {
         .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
         .enableSipTrace(true)
         .enableNotifications(true)
+        .enableRingtone(true)
         .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
         .notificationConfiguration(
             NotificationConfiguration().apply {
@@ -59,6 +60,7 @@ class TelecomManager(private var context: Application) {
                 context.mainLooper
             )
             setRegistrationListener(RegistrationListener(this@TelecomManager,context), context.mainLooper)
+            setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
         }
     }
 
@@ -72,7 +74,7 @@ class TelecomManager(private var context: Application) {
         _telecomEvents.emit(event)
     }
 
-     fun activateAccount(accountModel: Account?) {
+    fun activateAccount(accountModel: Account?) {
         Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel?.number}")
         if (Communicator.getInstance().callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
@@ -84,91 +86,95 @@ class TelecomManager(private var context: Application) {
         } else {
             Log.w(TELECOM_MANAGER, "activateAccount: already activated, deactivate before new activation")
         }
-     }
+    }
 
-     fun unregisterAccount() {
+    fun unregisterAccount() {
         Log.d(TELECOM_MANAGER, "deactivateAccount")
         CoroutineScope(Dispatchers.IO).launch {
             Communicator.getInstance().callClient.unregister()
         }
-     }
+    }
 
-     fun getCalls(): List<Call> {
+    fun getCalls(): List<Call> {
         return telecomManagerState.value.calls
-     }
-
-     fun call(number: String) {
+    }
+    fun call(number: String) {
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
         Log.d(TELECOM_MANAGER, "call: number = ${number}")
         callClient.placeCall(number)
-     }
+    }
 
-     fun acceptCall(callId: String) {
+    fun acceptCall(callId: String) {
         Log.d(TELECOM_MANAGER, "acceptCall: id = $callId")
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.find { it.id == callId }?.accept()
-     }
+    }
 
-     fun terminateCall(callId: String) {
+    fun terminateCall(callId: String) {
         Log.d(TELECOM_MANAGER, "terminateCall: id = $callId")
         telecomManagerState.value.calls.find { it.id == callId }?.terminate()
-     }
+    }
 
-     fun holdCall(callId: String) {
+    fun holdCall(callId: String) {
         Log.d(TELECOM_MANAGER, "holdCall: id = $callId")
         telecomManagerState.value.calls.find { it.id == callId }?.hold()
-     }
+    }
 
-     fun resumeCall(callId: String) {
+    fun resumeCall(callId: String) {
         Log.d(TELECOM_MANAGER, "resumeCall: id = $callId")
         telecomManagerState.value.calls.find { it.id == callId }?.resume()
-     }
+    }
 
-     fun transferCall(callId: String, targetNumber: String) {
+    fun transferCall(callId: String, targetNumber: String) {
         getCalls().find { it.id == callId }?.transfer(targetNumber)
         Log.d(TELECOM_MANAGER, "transferCall: id = $callId, target number = $targetNumber")
-     }
+    }
 
-     fun sendDtmf(callId: String, digits: String) {
+    fun sendDtmf(callId: String, digits: String) {
         Log.d(TELECOM_MANAGER, "sendDtmf: id = $callId, digits = $digits")
         telecomManagerState.value.calls.find { it.id == callId }?.sendDtmf(digits)
-     }
+    }
 
-     fun startConference(firstCallId: String, secondCallId: String) {
+    fun startConference(firstCallId: String, secondCallId: String) {
         val firstCall = telecomManagerState.value.calls.find { it.id == firstCallId }
         val secondCall = telecomManagerState.value.calls.find { it.id == secondCallId }
         Log.d(TELECOM_MANAGER, "startConference: firstCall = ${firstCall?.number}, secondCall = ${secondCall?.number}" +
                 "\n firstCallId = $firstCallId, secondCallId = $secondCallId")
         secondCall?.let { call: Call -> firstCall?.createConference(call.id) }
-     }
+    }
 
-     fun stopConference() {
+    fun stopConference() {
         getCalls().forEach { if (it.inConference()) it.removeFromConference() }
-     }
+    }
 
-     fun removeCallFromConference(callId: String) {
+    fun removeCallFromConference(callId: String) {
         telecomManagerState.value.calls.find { it.id == callId }?.removeFromConference()
-     }
+    }
 
-     fun addCallToConference(callId: String) {
+    fun addCallToConference(callId: String) {
         telecomManagerState.value.calls.find { it.id == callId }?.addToConference()
-     }
+    }
 
-     fun muteCall(callId: String, mute: Boolean) {
+    fun muteCall(callId: String, mute: Boolean) {
         Log.d(TELECOM_MANAGER, "muteCall: id = $callId, mute = $mute")
         telecomManagerState.value.calls.find { it.id == callId }?.mute(mute)
-     }
+    }
 
-     fun activateSpeaker(activateSpeaker: Boolean) {
+    fun activateSpeaker(activateSpeaker: Boolean) {
         Log.d(TELECOM_MANAGER, "activateSpeaker: $activateSpeaker")
         callClient.isSpeakerOn = activateSpeaker
         CoroutineScope(Dispatchers.IO).launch {
             _telecomEvents.emit(TelecomContract.HardwareEvent.OnSpeakerActivated(activateSpeaker))
         }
-     }
+    }
 
-     fun getRegistrationState(): RegistrationState {
+    fun setAudioRoute(route: AudioRoute) {
+        Log.d(TELECOM_MANAGER, "set audio route: $route")
+        callClient.setAudioRoute(route);
+    }
+
+    fun getRegistrationState(): RegistrationState {
         return callClient.registrationState
-     }
+    }
 
     fun setBackgroundState() {
         Log.d(TELECOM_MANAGER, "setBackgroundState")
@@ -197,6 +203,16 @@ class TelecomManager(private var context: Application) {
         withContext(Dispatchers.Main){
             _telecomManagerState.emit(telecomManagerState.value.reduce())
         }
+    }
+
+    fun updateAudioRoutes() {
+        CoroutineScope(Dispatchers.IO).launch {
+            _telecomEvents.emit(TelecomContract.HardwareEvent.OnAudioRouteChanged)
+        }
+    }
+
+    fun getAudioRoutes(): List<AudioRouteData> {
+        return callClient.audioRoutes
     }
 
     companion object {

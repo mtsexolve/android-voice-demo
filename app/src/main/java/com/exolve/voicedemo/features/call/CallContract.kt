@@ -3,7 +3,9 @@ package com.exolve.voicedemo.features.call
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.exolve.voicedemo.core.uiCommons.interfaces.*
+import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
+import com.exolve.voicesdk.platform.AudioRoute
 
 @Immutable
 class CallContract {
@@ -20,6 +22,8 @@ class CallContract {
         val isAddNewCallPressed: Boolean = false,
         val hasConference: Boolean = false,
         override val dialerText: String = "",
+        val audioRoutes: List<AudioRouteData>,
+        val selectedAudioRoute: AudioRoute
     ) : UiState, DialableUi {
 
         @Immutable
@@ -41,8 +45,9 @@ class CallContract {
         @Immutable data class OnTerminateCurrentButtonClicked(val callsId: String) : Event()
         @Immutable object OnTerminateAllButtonClicked : Event()
         @Immutable data class OnHoldButtonClicked(val callsId: String) : Event()
-        @Immutable data class OnSpeakerButtonClicked(val speakerPressed: Boolean) : Event()
+        @Immutable data class OnAudioRouteSelect(val route: AudioRoute) : Event()
         @Immutable object OnMuteButtonClicked : Event()
+        @Immutable object OnSpeakerButtonClicked : Event()
         @Immutable data class OnTransferButtonClicked(val currentCallId: String) : Event()
         @Immutable data class OnTransferNumberSelected(val selectedCall: String) : Event()
         @Immutable object OnNewCallButtonClicked : Event()

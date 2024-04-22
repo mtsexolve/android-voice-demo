@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.exolve.voicedemo.core.telecom.TelecomContract
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
 import com.exolve.voicedemo.core.telecom.TelecomEvent
+import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.call.CallContract.*
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.Call
+import com.exolve.voicesdk.platform.AudioRoute
 import kotlinx.coroutines.launch
 import javax.annotation.concurrent.Immutable
 
@@ -23,6 +25,12 @@ class CallViewModel(application: Application) :
 
     init {
         Log.d(CALL_VIEW_MODEL, "CalLViewModel init")
+        val routes = TelecomManager.getInstance().getAudioRoutes()
+        if (routes.any { it.route == AudioRoute.BLUETOOTH }) {
+            if (routes.none { it.active && it.route == AudioRoute.BLUETOOTH }) {
+                TelecomManager.getInstance().setAudioRoute(AudioRoute.BLUETOOTH)
+            }
+        }
 
         viewModelScope.launch {
             telecomManager.telecomEvents.collect {
@@ -32,15 +40,17 @@ class CallViewModel(application: Application) :
     }
 
     override fun initializeState(): State {
-        val list = mutableListOf<State.CallItemState>()
+        val calls = mutableListOf<State.CallItemState>()
         telecomManager.getCalls().forEach {
-            list.add(configureItemListStateObject(it, list))
+            calls.add(configureItemListStateObject(it, calls))
         }
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel: init list size :${list.size}")
+        Log.d(CALL_VIEW_MODEL, "CalLViewModel: init list size :${calls.size}")
         return State(
-            currentCallNumber = list.getOrNull(list.lastIndex)?.number ?: "",
-            currentCallId = list.getOrNull(list.lastIndex)?.callsId ?: "",
-            list,
+            currentCallNumber = calls.getOrNull(calls.lastIndex)?.number ?: "",
+            currentCallId = calls.getOrNull(calls.lastIndex)?.callsId ?: "",
+            calls,
+            audioRoutes = telecomManager.getAudioRoutes(),
+            selectedAudioRoute = AudioRoute.UNKNOWN // because user not selected any of
         )
     }
 
@@ -77,7 +87,14 @@ class CallViewModel(application: Application) :
                 ) }
                 holdCall(event.callsId)
             }
-            is Event.OnSpeakerButtonClicked -> { handleSpeaker() }
+            is Event.OnAudioRouteSelect -> { setAudioRoute(event.route) }
+            is Event.OnSpeakerButtonClicked -> {
+                if (uiState.value.audioRoutes.size > 2) {
+                    requestAudioRoutes()
+                } else {
+                    handleSpeaker()
+                }
+            }
             is Event.OnMuteButtonClicked -> { muteCall() }
             is Event.OnDtmfButtonClicked -> { handleDtmf() }
             is Event.OnTransferNumberSelected -> { transferCall(event.selectedCall) }
@@ -160,6 +177,23 @@ class CallViewModel(application: Application) :
                             })
                         }?: uiState.value
                     }
+                is TelecomContract.HardwareEvent.OnAudioRouteChanged -> {
+                    val routes = TelecomManager.getInstance().getAudioRoutes()
+                    if (uiState.value.selectedAudioRoute != AudioRoute.UNKNOWN
+                        && routes.none { it.active && it.route == uiState.value.selectedAudioRoute }) {
+                        return;
+                    }
+                    val noBluetoothInRoutes = uiState.value.audioRoutes.none { it.route == AudioRoute.BLUETOOTH }
+                    setState { copy(
+                        audioRoutes = routes,
+                        selectedAudioRoute = AudioRoute.UNKNOWN
+                    ) }
+                    val isBluetoothInRoutes = routes.any { it.route == AudioRoute.BLUETOOTH }
+                    if (noBluetoothInRoutes && isBluetoothInRoutes) {
+                        Log.d(CALL_VIEW_MODEL, "CallViewModel: bluetooth device appears, connect now")
+                        TelecomManager.getInstance().setAudioRoute(AudioRoute.BLUETOOTH)
+                    }
+                }
             }
         }
     }
@@ -205,6 +239,17 @@ class CallViewModel(application: Application) :
 
     private fun handleSpeaker() {
         telecomManager.activateSpeaker(activateSpeaker = !uiState.value.isSpeakerPressed)
+    }
+
+    private fun setAudioRoute(route: AudioRoute) {
+        setState { copy(
+            selectedAudioRoute = route
+        ) }
+        telecomManager.setAudioRoute(route)
+    }
+
+    private fun requestAudioRoutes() {
+        telecomManager.updateAudioRoutes()
     }
 
     private fun holdCall(callsId: String) {

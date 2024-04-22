@@ -13,13 +13,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -40,7 +41,9 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.dialer.NumberEntryPanel
 import com.exolve.voicedemo.features.call.CallContract.State.CallItemState
 import com.exolve.voicedemo.R
+import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
+import com.exolve.voicesdk.platform.AudioRoute
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -103,6 +106,8 @@ fun OngoingCallScreen(
             isMuted = isMuted(state),
             isSpeakerPressed = state.value.isSpeakerPressed,
             currentCallId = state.value.currentCallId,
+            state.value.audioRoutes,
+            state.value.selectedAudioRoute
         )
     }
 }
@@ -440,8 +445,14 @@ fun CallLineItem(
     hasConference: Boolean,
     conferenceSize: Int,
 ) {
+    val color = colorResource(id = R.color.mts_bg_grey)
     Card(
-        backgroundColor = colorResource(id = R.color.mts_bg_grey),
+        colors = CardColors(
+            contentColor = color,
+            containerColor = color,
+            disabledContainerColor = color,
+            disabledContentColor = color
+        ),
         modifier = modifier
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
@@ -461,6 +472,7 @@ fun CallLineItem(
                 when {
                     // On Hold
                     item.status == CallState.ON_HOLD -> {
+                        val color = colorResource(id = R.color.mts_bg_grey)
                         if (hasConference && (conferenceSize < 5)) ButtonAddToConference(onEvent = onEvent, item = item)
                         ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
                         OutlinedButton(
@@ -469,7 +481,12 @@ fun CallLineItem(
                                 .semantics { testTagsAsResourceId = true }
                                 .testTag("button_callscreen_list_item_resume_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
-                            colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
+                            colors = ButtonColors(
+                                containerColor = color,
+                                contentColor = color,
+                                disabledContainerColor = color,
+                                disabledContentColor = color
+                            ),
                             contentPadding = PaddingValues(0.dp),
                         ) {
                             Icon(
@@ -493,6 +510,7 @@ fun CallLineItem(
                     (item.status != CallState.CONNECTED) and
                     (item.status != CallState.ON_HOLD) and
                     !item.isCallOutgoing -> {
+                        val color = colorResource(id = R.color.mts_bg_grey)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnAcceptCallButtonClicked(item.callsId)) },
                             //shape = CircleShape,
@@ -500,7 +518,13 @@ fun CallLineItem(
                                 .semantics { testTagsAsResourceId = true }
                                 .testTag("button_callscreen_list_item_accept_call_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
-                            colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
+                            colors = ButtonColors(
+                                containerColor = color,
+                                contentColor = color,
+                                disabledContainerColor = color,
+                                disabledContentColor = color
+                            ),
+
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(
@@ -524,6 +548,7 @@ fun CallLineItem(
                     }
                     // Ongoing call, resumed
                     (item.status == CallState.CONNECTED) -> {
+                        val color = colorResource(id = R.color.mts_bg_grey)
                         ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnHoldButtonClicked(item.callsId)) },
@@ -532,7 +557,12 @@ fun CallLineItem(
                                 .semantics { testTagsAsResourceId = true }
                                 .testTag("button_callscreen_list_item_hold_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
-                            colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
+                            colors = ButtonColors(
+                                containerColor = color,
+                                contentColor = color,
+                                disabledContainerColor = color,
+                                disabledContentColor = color
+                            ),
                             contentPadding = PaddingValues(0.dp),
                         ) {
                             Icon(
@@ -567,8 +597,14 @@ fun ConferenceLineItem(
     onEvent: (event: UiEvent) -> Unit,
     item: CallItemState
 ) {
+    val color = colorResource(id = R.color.mts_bg_grey)
     Card(
-        backgroundColor = colorResource(id = R.color.mts_bg_grey),
+        colors = CardColors(
+            contentColor = color,
+            containerColor = color,
+            disabledContainerColor = color,
+            disabledContentColor = color
+        ),
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
     ) {
@@ -606,7 +642,12 @@ private fun ButtonTerminateSelectedRegularCall(
             .semantics { testTagsAsResourceId = true }
             .testTag("button_callscreen_list_item_terminate_selected_call_${item.indexForUiTest}"),
         border = BorderStroke(1.dp, color),
-        colors =  ButtonDefaults.buttonColors(backgroundColor = color) ,
+        colors = ButtonColors(
+            containerColor = color,
+            contentColor = color,
+            disabledContainerColor = color,
+            disabledContentColor = color
+        ),
         contentPadding = PaddingValues(0.dp),
 
         ) {
@@ -700,6 +741,8 @@ fun ControlPanel(
     isMuted: Boolean,
     isSpeakerPressed: Boolean,
     currentCallId: String,
+    routes: List<AudioRouteData>,
+    selectedRoute: AudioRoute
 ) {
     ConstraintLayout(
         modifier = modifier
@@ -738,8 +781,10 @@ fun ControlPanel(
                 top.linkTo(parent.top)
                 start.linkTo(dtmfButton.end, margin = 24.dp)
             },
+            routes,
             onEvent,
-            isSpeakerPressed
+            isSpeakerPressed,
+            selectedRoute == AudioRoute.UNKNOWN
         )
         // New Call add
         ButtonNewCall(
@@ -793,6 +838,7 @@ private fun ButtonTransfer(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_transfer),
+                tint = Color.Black,
                 contentDescription = "Transfer",
                 modifier = Modifier.size(width = 26.dp, height = 28.dp),
             )
@@ -870,6 +916,7 @@ private fun ButtonNewCall(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_add_new_call),
+                tint = Color.Black,
                 contentDescription = "New Call",
                 modifier = Modifier.size(width = 28.dp, height = 28.dp),
             )
@@ -889,27 +936,52 @@ private fun ButtonNewCall(
 @OptIn(ExperimentalComposeUiApi::class)
 private fun ButtonSpeaker(
     modifier: Modifier,
+    routes: List<AudioRouteData>,
     onEvent: (event: UiEvent) -> Unit,
-    isSpeakerPressed: Boolean
+    isSpeakerPressed: Boolean,
+    enabled: Boolean
 ) {
+    var showRouteSelector by remember { mutableStateOf(false) }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        var iconId = R.drawable.ic_route_earpiece
+        val active = routes.firstOrNull { it -> it.active }
+        if (active != null) {
+            Log.d(CALL_SCREEN, "active route ${active.name}")
+            iconId = when {
+                active.route == AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
+                active.route == AudioRoute.HEADSET -> R.drawable.ic_route_headset
+                active.route == AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
+                else -> R.drawable.ic_route_earpiece
+            }
+        } else {
+            Log.d(CALL_SCREEN, "no active route")
+        }
+
+        if (routes.size <= 2) {
+            showRouteSelector = false
+        }
+
         OutlinedButton(
-            onClick = { onEvent(CallContract.Event.OnSpeakerButtonClicked(isSpeakerPressed)) },
+            onClick = {
+                onEvent(CallContract.Event.OnSpeakerButtonClicked)
+                showRouteSelector = routes.size > 2
+            },
             Modifier
                 .semantics { testTagsAsResourceId = true }
                 .testTag("button_callscreen_speaker")
                 .size(72.dp),
             shape = CircleShape,
-            colors = if(isSpeakerPressed)ButtonDefaults.buttonColors(colorResource(id = R.color.mts_grey))
-            else ButtonDefaults.buttonColors(colorResource(id = R.color.mts_bg_grey)),
+            colors = ButtonDefaults.buttonColors(colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
+            enabled = enabled
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.ic_speaker_basic),
+                painter = painterResource(id = iconId),
+                tint = Color.Black,
                 contentDescription = "Speaker",
                 modifier = Modifier.size(width = 26.dp, height = 28.dp),
             )
@@ -922,8 +994,46 @@ private fun ButtonSpeaker(
             ),
             text = stringResource(id = R.string.button_speaker)
         )
+        DropdownMenu(expanded = showRouteSelector,
+            onDismissRequest = { showRouteSelector = false }
+        ) {
+                routes.forEach {
+                    DropdownMenuItem(
+                        text = { Text(it.name) },
+                        onClick = {
+                            if (!it.active) {
+                                onEvent(CallContract.Event.OnAudioRouteSelect(it.route))
+                            }
+                            showRouteSelector = false
+                        },
+                        leadingIcon = {
+                            val icon = when {
+                                it.route == AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
+                                it.route == AudioRoute.HEADSET -> R.drawable.ic_route_headset
+                                it.route == AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
+                                else  -> R.drawable.ic_route_earpiece
+                            }
+                            Icon(
+                                painter = painterResource(id = icon),
+                                contentDescription = "DTMF",
+                                modifier = Modifier.size(width = 30.dp, height = 31.dp),
+                            )
+                        },
+                        trailingIcon = {
+                            if (it.active) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_route_current),
+                                    contentDescription = "DTMF",
+                                    modifier = Modifier.size(width = 30.dp, height = 31.dp),
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
-}
+
 
 @Composable
 @OptIn(ExperimentalComposeUiApi::class)
@@ -945,6 +1055,7 @@ private fun ButtonDtmf(modifier: Modifier, onEvent: (event: UiEvent) -> Unit) {
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_dtmf_call),
+                tint = Color.Black,
                 contentDescription = "DTMF",
                 modifier = Modifier.size(width = 30.dp, height = 31.dp),
             )

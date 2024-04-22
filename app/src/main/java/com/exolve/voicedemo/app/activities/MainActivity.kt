@@ -38,18 +38,36 @@ class MainActivity : ComponentActivity() {
     private val dialerViewModel: DialerViewModel by viewModels()
 
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.i(MAIN_ACTIVITY, "permission granted")
-        } else {
-            Log.i(MAIN_ACTIVITY, "permission denied")
-        }
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+            var granted: Boolean = true
+            for (permission in permissions) {
+                granted = granted && permission.value
+            }
+
+            if (granted) {
+                Log.i(MAIN_ACTIVITY, "permission granted")
+            } else {
+                Log.i(MAIN_ACTIVITY, "permission denied")
+            }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+
+        var permissions: Array<String>
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions = arrayOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.BLUETOOTH_CONNECT
+            )
+        } else {
+            permissions = arrayOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.BLUETOOTH
+            )
+        }
+        requestPermissionLauncher.launch(permissions)
         askNotificationPermission()
         initEventListeners(settingsViewModel, dialerViewModel)
         setContent {
@@ -103,10 +121,10 @@ class MainActivity : ComponentActivity() {
             ) {
                 //TODO: show and educational UI
                 Log.w(MAIN_ACTIVITY, "permission denied, should show rationale")
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                requestPermissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             } else {
                 Log.d(MAIN_ACTIVITY, "requesting notification permissions")
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                requestPermissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             }
         }
     }
