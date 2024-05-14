@@ -1,5 +1,6 @@
 package com.exolve.voicedemo.features.call
 
+import android.Manifest
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.viewModelScope
@@ -11,7 +12,9 @@ import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.call.CallContract.*
 import com.exolve.voicedemo.features.dialer.DialerContract
+import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
 import com.exolve.voicesdk.CallState
+import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.platform.AudioRoute
 import kotlinx.coroutines.launch
@@ -22,6 +25,8 @@ private const val CALL_VIEW_MODEL = "CallViewModel"
 @Immutable
 class CallViewModel(application: Application) :
     BaseViewModel<UiEvent, State, Effect>(application) {
+
+    private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
 
     init {
         Log.d(CALL_VIEW_MODEL, "CalLViewModel init")
@@ -157,6 +162,20 @@ class CallViewModel(application: Application) :
         if (event is CallEvent) {
             Log.d(CALL_VIEW_MODEL, "CalLViewModel: handleTelecomEvent: $event ${event.call.id}")
             updateUiListOfCalls(event.call)
+            if(event is CallEvent.OnCallUserActionRequired){
+                when (event.pendingEvent) {
+                    CallPendingEvent.ACCEPT_CALL -> {
+                        cancelPermissionRequestCallback = requestPermissions(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                            onRequestedResult = {
+                                acceptCall(event.call.id)
+                            }
+                        )
+                    }
+                    else -> Log.d(CALL_VIEW_MODEL, "CalLViewModel: no match pendingEvent")
+                }
+            }
         } else {
             handleHardwareEvent(event)
         }
@@ -283,5 +302,10 @@ class CallViewModel(application: Application) :
                 uiState.value.calls.getOrNull(secondIndexInUiList)?.callsId ?: "",
             )
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        cancelPermissionRequestCallback()
     }
 }

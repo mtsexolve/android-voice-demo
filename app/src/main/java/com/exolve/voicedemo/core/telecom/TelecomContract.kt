@@ -5,6 +5,7 @@ import com.exolve.voicesdk.CallError
 import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.RegistrationError
 import com.exolve.voicesdk.RegistrationState
+import com.exolve.voicesdk.CallPendingEvent
 
 class TelecomContract {
     data class State(
@@ -60,6 +61,11 @@ class TelecomContract {
         data class OnConferenceStarted(
             override val call: Call,
             val isInConference: Boolean,
+        ) : CallEvent(call)
+
+        data class OnCallUserActionRequired(
+            override val call: Call,
+            val pendingEvent: CallPendingEvent,
         ) : CallEvent(call)
     }
 

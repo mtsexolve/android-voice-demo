@@ -39,5 +39,6 @@
     <string name="call_screen_current_call_ended">call ended</string>
     <string name="settings_logs_button">Send logs</string>
     <string name="background_running">Background running</string>
+    <string name="calllocation_detect">Call location</string>
 
 </resources>

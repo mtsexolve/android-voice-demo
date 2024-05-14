@@ -1,7 +1,9 @@
 package com.exolve.voicedemo.core.uiCommons
 
 import android.app.Application
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.exolve.voicedemo.core.telecom.TelecomEvent
@@ -9,6 +11,9 @@ import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEffect
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiState
+import com.exolve.voicedemo.core.utils.PermissionRequester
+import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
+import com.exolve.voicedemo.core.utils.PermissionState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,6 +21,7 @@ import kotlinx.coroutines.launch
 abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect>(application: Application) : AndroidViewModel(
     application
 ) {
+    enum class PermissionsRequestedResult { GRANTED_ALL, GRANTED_ANY, DENIED_ALL }
 
     protected val telecomManager: TelecomManager = TelecomManager.getInstance()
     private val initState: State by lazy { initializeState() }
@@ -69,5 +75,28 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
     abstract fun handleUiEvent(event : Event)
 
     abstract suspend fun handleTelecomEvent(event: TelecomEvent)
+
+
+    protected fun requestPermissions(vararg permissions: String, onRequestedResult: (state: PermissionsRequestedResult) -> Unit = {}): CancelPermissionRequestCallback {
+        if(permissions.all { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
+            onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)
+            return {}
+        } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
+            onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
+            return {}
+        }
+        else {
+            return PermissionRequester.requestPermissions(getApplication(), *permissions) {
+                if (it.all{it.state == PermissionState.GRANTED}) {
+                    onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)
+                } else if (it.any{it.state == PermissionState.GRANTED}) {
+                    onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
+                }
+                else {
+                    onRequestedResult(PermissionsRequestedResult.DENIED_ALL)
+                }
+            }
+        }
+    }
 
 }

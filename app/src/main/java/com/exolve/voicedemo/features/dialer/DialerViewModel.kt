@@ -1,14 +1,17 @@
 package com.exolve.voicedemo.features.dialer
 
+import android.Manifest
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.viewModelScope
 import com.exolve.voicedemo.R
+import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicedemo.core.telecom.TelecomEvent
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
+import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
 import com.exolve.voicesdk.RegistrationState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -20,8 +23,9 @@ private const val DIALER_VIEW_MODEL = "DialerViewModel"
 class DialerViewModel(application: Application) :
     BaseViewModel<UiEvent, DialerContract.State, DialerContract.Effect>(application) {
 
+    private val settingsRepository: SettingsRepository = SettingsRepository(context = application)
     private var dialerToast = Toast.makeText(getApplication(), R.string.dialer_toast_activate, Toast.LENGTH_LONG)
-
+    private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
     init {
         viewModelScope.launch(Dispatchers.IO) {
             telecomManager.telecomEvents.collect {telecomEvent ->
@@ -64,7 +68,15 @@ class DialerViewModel(application: Application) :
                      dialerToast.show()
                 }
                 else -> {
-                    telecomManager.call(uiState.value.dialerText)
+                    if(settingsRepository.isDetectCallLocationEnabled()){
+                        cancelPermissionRequestCallback = requestPermissions(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                            onRequestedResult = { telecomManager.call(uiState.value.dialerText) }
+                        )
+                    } else {
+                        telecomManager.call(uiState.value.dialerText)
+                    }
                 }
             }
         }
@@ -90,6 +102,7 @@ class DialerViewModel(application: Application) :
     override fun onCleared() {
         super.onCleared()
         viewModelScope.coroutineContext.cancel()
+        cancelPermissionRequestCallback()
     }
 
 }

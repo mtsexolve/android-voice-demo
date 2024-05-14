@@ -78,7 +78,8 @@ class SettingsViewModel(application: Application) :
             token = getApplication<CallApplication>().getString(R.string.default_token).lowercase(),
             versionDescription = "",
             registrationState = telecomManager.getRegistrationState(),
-            voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled()
+            voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled(),
+            detectCallLocation = telecomManager.isDetectCallLocationEnabled(),
         )
     }
 
@@ -101,6 +102,9 @@ class SettingsViewModel(application: Application) :
             is SettingsContract.Event.OnCopyButtonClicked -> { copyTokenToClipBoard() }
             is SettingsContract.Event.OnBackgroundRunningChanged -> {  enableBackgroundRunning(event.enabled)
                 setState { copy(voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled()) }
+            }
+            is SettingsContract.Event.OnCallLocationDetectChanged -> {  enableDetectСallLocation(event.enabled)
+                setState { copy(detectCallLocation = telecomManager.isDetectCallLocationEnabled()) }
             }
             else -> {}
         }
@@ -144,6 +148,10 @@ class SettingsViewModel(application: Application) :
 
     private fun enableBackgroundRunning(enable: Boolean) {
         telecomManager.setBackgroundRunningEnabled(enable)
+    }
+
+    private fun enableDetectСallLocation(enable: Boolean) {
+        telecomManager.setDetectCallLocationEnabled(enable)
     }
 
     override fun onCleared() {

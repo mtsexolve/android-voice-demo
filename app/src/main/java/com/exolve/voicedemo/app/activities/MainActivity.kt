@@ -54,20 +54,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        var permissions: Array<String>
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions = arrayOf(
-                Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.BLUETOOTH_CONNECT
-            )
-        } else {
-            permissions = arrayOf(
-                Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.BLUETOOTH
-            )
-        }
-        requestPermissionLauncher.launch(permissions)
+        requestPermissionLauncher.launch(arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Manifest.permission.BLUETOOTH_CONNECT
+                else Manifest.permission.BLUETOOTH
+        ))
         askNotificationPermission()
         initEventListeners(settingsViewModel, dialerViewModel)
         setContent {

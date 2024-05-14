@@ -11,6 +11,7 @@ class SettingsRepository(
     private val PREFERENCES = "EXOLVE_PREFERENCES_FILE_KEY"
     private val ACCOUNT_KEY = "LOCAL_ACCOUNT_GSON_KEY"
     private val BACKGROUND_RUNNING_KEY = "LOCAL_BACKGROUND_RUNNING"
+    private val DETECT_CALLLOCATION_KEY = "LOCAL_DETECT_CALLLOCATION"
 
     private val dataSource = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
@@ -40,5 +41,15 @@ class SettingsRepository(
 
     fun isBackgroundRunningEnabled(): Boolean {
         return dataSource.getBoolean(BACKGROUND_RUNNING_KEY, false)
+    }
+
+    fun setDetectCallLocationEnabled(enabled: Boolean) {
+        editor
+            .putBoolean(DETECT_CALLLOCATION_KEY, enabled)
+            .apply()
+    }
+
+    fun isDetectCallLocationEnabled(): Boolean {
+        return dataSource.getBoolean(DETECT_CALLLOCATION_KEY, true)
     }
 }

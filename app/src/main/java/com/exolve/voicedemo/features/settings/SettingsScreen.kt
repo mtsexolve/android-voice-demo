@@ -56,6 +56,7 @@ fun SettingsScreen(
         versionDescription = state.versionDescription,
         registrationState = state.registrationState,
         voipBackgroundRunning = state.voipBackgroundRunning,
+        detectCallLocation = state.detectCallLocation
     )
 }
 
@@ -72,6 +73,7 @@ fun SettingsContent(
     versionDescription: String,
     registrationState: RegistrationState,
     voipBackgroundRunning: Boolean,
+    detectCallLocation: Boolean,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -89,6 +91,7 @@ fun SettingsContent(
                     token = token,
                     registrationState = registrationState,
                     voipBackgroundRunning = voipBackgroundRunning,
+                    detectCallLocation = detectCallLocation,
                 )
 
             }
@@ -143,6 +146,7 @@ fun AccountView(
     token: String,
     registrationState: RegistrationState,
     voipBackgroundRunning: Boolean,
+    detectCallLocation: Boolean,
 ) {
     val customTextSelectionColor = TextSelectionColors(
         handleColor = colorResource(id = R.color.mts_red),
@@ -163,6 +167,7 @@ fun AccountView(
             tokenEditText,
             tokenHeader,
             bgModeSwitchLayout,
+            ldModeSwitchLayout,
         ) = createRefs()
 
         Text(
@@ -369,6 +374,38 @@ fun AccountView(
                 checked = voipBackgroundRunning,
                 onCheckedChange = {
                     onEvent(SettingsContract.Event.OnBackgroundRunningChanged(it))
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = colorResource(id = R.color.mts_red),
+                )
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.constrainAs(ldModeSwitchLayout) {
+                top.linkTo(copyTokenButton.bottom, margin = 8.dp)
+                start.linkTo(bgModeSwitchLayout.end)
+            }
+
+        ) {
+            Text(
+                style = TextStyle(
+                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                    fontSize = 14.sp,
+                    color = colorResource(
+                        id = R.color.mts_text_grey
+                    )
+                ),
+                text = stringResource(id = R.string.calllocation_detect)
+            )
+
+            Switch(
+                modifier = Modifier
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("button_settings_detect_call_location_switch"),
+                checked = detectCallLocation,
+                onCheckedChange = {
+                    onEvent(SettingsContract.Event.OnCallLocationDetectChanged(it))
                 },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = colorResource(id = R.color.mts_red),

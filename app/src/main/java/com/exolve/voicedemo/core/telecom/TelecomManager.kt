@@ -34,6 +34,7 @@ class TelecomManager(private var context: Application) {
         .enableNotifications(true)
         .enableRingtone(true)
         .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
+        .enableDetectCallLocation(SettingsRepository(context).isDetectCallLocationEnabled())
         .notificationConfiguration(
             NotificationConfiguration().apply {
                 callActivityClass = CallActivity::class.java.canonicalName
@@ -50,19 +51,17 @@ class TelecomManager(private var context: Application) {
     init {
         Log.d(TELECOM_MANAGER, "init: callClient = $callClient")
         callClient.run {
-            setCallsListener(
-                CallsListener(
-                    this@TelecomManager,
-                    telecomManagerEvent = _telecomEvents,
-                    telecomManagerState = telecomManagerState,
-                    context = context
-                    ),
-                context.mainLooper
-            )
+            setCallsListener(CallsListener(
+                this@TelecomManager,
+                telecomManagerEvent = _telecomEvents,
+                telecomManagerState = telecomManagerState,
+                context = context
+            ), context.mainLooper);
             setRegistrationListener(RegistrationListener(this@TelecomManager,context), context.mainLooper)
             setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
         }
     }
+
 
     fun getVersionDescription(): String {
         val versionInfo : VersionInfo = Communicator.getInstance().getVersionInfo()
@@ -100,7 +99,7 @@ class TelecomManager(private var context: Application) {
     }
     fun call(number: String) {
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
-        Log.d(TELECOM_MANAGER, "call: number = ${number}")
+        Log.d(TELECOM_MANAGER, "call: number = $number")
         callClient.placeCall(number)
     }
 
@@ -193,6 +192,15 @@ class TelecomManager(private var context: Application) {
     fun setBackgroundRunningEnabled(enable: Boolean) {
         Communicator.getInstance().configurationManager.isBackgroundRunningEnabled = enable
         SettingsRepository(context).setBackgroundRunningEnabled(enable)
+    }
+
+    fun isDetectCallLocationEnabled(): Boolean {
+        return SettingsRepository(context).isDetectCallLocationEnabled()
+    }
+
+    fun setDetectCallLocationEnabled(enable: Boolean) {
+        Communicator.getInstance().configurationManager.setDetectCallLocationEnabled(enable)
+        SettingsRepository(context).setDetectCallLocationEnabled(enable)
     }
 
     fun setToken(token: String) {
