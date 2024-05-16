@@ -29,20 +29,6 @@ object PushProvider {
     }
 
     fun processPushNotification(context: Context, data: String) {
-        if (Communicator.getInstance() == null) {
-            Log.d(
-                PUSH_PROVIDER,
-                "processPushNotification: configuring Communicator"
-            )
-            val configuration =
-                Configuration.builder(context)
-                    .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
-                    .enableSipTrace(true)
-                    .enableNotifications(true)
-                    .build()
-
-            Communicator.initialize(context, configuration, ApplicationState.FOREGROUND).callClient
-        }
         Log.d(
             PUSH_PROVIDER,
             "processPushNotification: new notification = $data"
