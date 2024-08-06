@@ -13,6 +13,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.call.CallContract.*
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
+import com.exolve.voicedemo.core.utils.OnDropData
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
@@ -55,8 +56,9 @@ class CallViewModel(application: Application) :
             currentCallId = calls.getOrNull(calls.lastIndex)?.callsId ?: "",
             calls,
             audioRoutes = telecomManager.getAudioRoutes(),
-            selectedAudioRoute = AudioRoute.UNKNOWN // because user not selected any of
-        )
+            selectedAudioRoute = AudioRoute.UNKNOWN, // because user not selected any of
+            onDropData = null
+            )
     }
 
     private fun configureItemListStateObject(
@@ -126,7 +128,18 @@ class CallViewModel(application: Application) :
                     .also { setState { copy(calls = it) } }
 
             }
-            is Event.OnItemDroppedOnItem -> { startConference(event.firstIndex, event.secondIndex) }
+            is Event.OnItemDroppedOnItem -> {
+                if (event.firstIndex == null || event.secondIndex == null) {
+                    return
+                }
+                val first = uiState.value.calls.getOrNull(event.firstIndex) ?: return
+                val second = uiState.value.calls.getOrNull(event.secondIndex) ?: return
+
+                setState { copy(
+                    onDropData = OnDropData(first = first, second = second)
+                ) }
+            }
+            is Event.OnReleaseDropData -> { setState { copy(onDropData = null) } }
             is Event.OnAddCallToConference -> { telecomManager.addCallToConference(callId = event.callsId) }
             is Event.OnRemoveCallFromConference -> { telecomManager.removeCallFromConference(callId = event.callsId) }
         }
@@ -227,7 +240,7 @@ class CallViewModel(application: Application) :
 
     private fun transferCall(selectedCalNumber: String) {
         Log.d(CALL_VIEW_MODEL, "CalLViewModel: transfer call: selectedNumber = $selectedCalNumber")
-        telecomManager.transferCall(
+        telecomManager.transferToNumber(
             uiState.value.currentCallId, selectedCalNumber.replace("[^0-9]".toRegex(), "")
         )
         setState { copy(isTransferPressed = !isTransferPressed) }

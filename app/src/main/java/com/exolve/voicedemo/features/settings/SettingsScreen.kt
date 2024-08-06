@@ -3,6 +3,8 @@ package com.exolve.voicedemo.features.settings
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -12,7 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
@@ -78,11 +82,18 @@ fun SettingsContent(
 ) {
     val context = LocalContext.current
     val bundleId = getBundleId(context)
+    val focusManager = LocalFocusManager.current
+    var shouldShowClearLogsAlert by remember { mutableStateOf(false) }
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        focusManager.clearFocus()
+                    }
+                }
         ) {
             AccountView(
                     onEvent = onEvent,
@@ -115,7 +126,7 @@ fun SettingsContent(
             Row(modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Absolute.Right) {
                 OutlinedButton(
-                    onClick = { SharingProvider(context.applicationContext).share("Logs") },
+                    onClick = {},
                     modifier = Modifier
                         .padding(bottom = 4.dp),
                     colors = ButtonDefaults.buttonColors(colorResource(id = R.color.white)),
@@ -130,8 +141,40 @@ fun SettingsContent(
                             else colorResource(id = R.color.mts_text_grey),
                             fontFamily = FontFamily(Font(R.font.mtscompact_regular))
                         ),
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { SharingProvider(context.applicationContext).share("Logs") },
+                                onLongPress = { shouldShowClearLogsAlert = true }
+                            )
+                        }
                     )
                 }
+            }
+            if (shouldShowClearLogsAlert) {
+                AlertDialog(
+                    onDismissRequest = { shouldShowClearLogsAlert = false},
+                    title = { Text(stringResource(id = R.string.clear_logs_title)) },
+                    text = { Text(stringResource(id = R.string.clear_logs_message)) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                SharingProvider(context.applicationContext).removeOldFiles()
+                                shouldShowClearLogsAlert = false
+                            },
+                            colors = ButtonDefaults.buttonColors(colorResource(id = R.color.white)),
+                            border = BorderStroke(1.dp, colorResource(id = R.color.white))) {
+                            Text(stringResource(id = R.string.clear_logs_confirm))
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { shouldShowClearLogsAlert = false },
+                            colors = ButtonDefaults.buttonColors(colorResource(id = R.color.white)),
+                            border = BorderStroke(1.dp, colorResource(id = R.color.white))) {
+                            Text(stringResource(id = R.string.clear_logs_cancel))
+                        }
+                    }
+                )
             }
         }
     }

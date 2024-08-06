@@ -3,11 +3,14 @@ package com.exolve.voicedemo.app.activities
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.os.Build
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material.Scaffold
@@ -25,6 +28,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
 import com.exolve.voicedemo.features.bars.AppBottomNavigation
 import com.exolve.voicedemo.features.bars.AppTopBar
+import com.exolve.voicedemo.features.call.CallContract
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.features.settings.SettingsContract
@@ -50,6 +54,54 @@ class MainActivity : ComponentActivity() {
             } else {
                 Log.i(MAIN_ACTIVITY, "permission denied")
             }
+    }
+    private val getContactResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            handleContactResult(result)
+        }
+
+    private fun startActivityForGetContact() {
+        val intent = Intent(Intent.ACTION_PICK).apply {
+            type = ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+        }
+        Log.d(MAIN_ACTIVITY, "startActivity for get contact with intent $intent"
+        )
+        getContactResult.launch(intent)
+    }
+
+    private val contactsPermissionRequestLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.i(MAIN_ACTIVITY, "contacts permission granted")
+            startActivityForGetContact()
+        } else {
+            Log.i(MAIN_ACTIVITY, "contacts permission denied")
+        }
+    }
+
+    private fun handleContactResult(contactResult: ActivityResult) {
+        if (contactResult.resultCode == RESULT_OK) {
+            Log.d(MAIN_ACTIVITY, "handleContactResult: Result is OK")
+            val cursor: Cursor? = contactResult.data?.data?.let { uri ->
+                applicationContext.contentResolver.query(uri, null,null,null,null)
+            }
+            if (cursor != null && cursor.moveToFirst()) {
+                val numberColumnIndex: Int =
+                    cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                val number: String = cursor.getString(numberColumnIndex)
+                cursor.close()
+                // Show results
+                dialerViewModel.setState {
+                    copy(dialerText = number)
+                }
+            } else {
+                Log.d(MAIN_ACTIVITY, "handleContactResult: invalid cursor"
+                )
+            }
+        } else {
+            Log.d(MAIN_ACTIVITY, "handleContactResult: Result is not OK")
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,6 +141,9 @@ class MainActivity : ComponentActivity() {
         when (event) {
             is SettingsContract.Event.OnBackToCallActivityClicked -> backToCallActivity()
             is DialerContract.Event.OnBackToCallActivityClicked -> backToCallActivity()
+            is DialerContract.Event.OnContactsButtonClicked -> {
+                contactsPermissionRequestLauncher.launch(Manifest.permission.READ_CONTACTS)
+            }
         }
     }
 

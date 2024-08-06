@@ -67,6 +67,10 @@ class TelecomContract {
             override val call: Call,
             val pendingEvent: CallPendingEvent,
         ) : CallEvent(call)
+
+        data class OnCallConnectionLost(
+            override val call: Call,
+        ) : CallEvent(call)
     }
 
     sealed class HardwareEvent : TelecomEvent {

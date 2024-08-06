@@ -8,14 +8,13 @@ import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.CallError
 import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.CallUserAction
-import com.exolve.voicesdk.CallLocationConsumer
-import com.exolve.voicesdk.ICallLocationRequester
 import com.exolve.voicesdk.ICallsListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
 
 private const val CALLS_LISTENER = "CallsListener"
 
@@ -44,7 +43,9 @@ class CallsListener(
         Log.d(CALLS_LISTENER, "callConnected(). Call ID: ${p0?.id}")
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {
-                telecomManager.setState { copy(currentCall = p0) }
+                telecomManager.setState { copy(currentCall = p0 ,calls = telecomManagerState.value.calls.apply {
+                    this[this.indexOfFirst { other_call: Call -> other_call.id == it.id }] = it
+                })}
                 telecomManagerEvent.emit(CallEvent.OnCallEstablished(p0))
             }
         }
@@ -85,6 +86,16 @@ class CallsListener(
                 }
                 telecomManagerEvent.emit(CallEvent.OnCallTerminated(it))
             }
+        }
+    }
+
+    override fun callConnectionLost(call: Call) {
+        Log.d(CALLS_LISTENER, "callConnectionLost(). Call ID: ${call.id}")
+        CoroutineScope(Dispatchers.IO).launch {
+            telecomManager.setState { copy(calls = telecomManagerState.value.calls.apply {
+                this[this.indexOfFirst { other_call: Call -> other_call.id == call.id }] = call
+            })}
+            telecomManagerEvent.emit(CallEvent.OnCallConnectionLost(call))
         }
     }
 

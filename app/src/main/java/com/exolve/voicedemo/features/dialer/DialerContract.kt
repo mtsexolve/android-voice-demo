@@ -21,6 +21,7 @@ class DialerContract {
         @Immutable data class OnDigitButtonClicked(val index: String) : Event()
         @Immutable data class OnRemoveButtonClicked(val longClicked: Boolean) : Event()
         @Immutable object OnBackToCallActivityClicked : Event()
+        @Immutable object OnContactsButtonClicked : Event()
     }
 
     @Immutable

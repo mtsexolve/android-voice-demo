@@ -3,6 +3,7 @@ package com.exolve.voicedemo.features.call
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.exolve.voicedemo.core.uiCommons.interfaces.*
+import com.exolve.voicedemo.core.utils.OnDropData
 import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.platform.AudioRoute
@@ -23,7 +24,8 @@ class CallContract {
         val hasConference: Boolean = false,
         override val dialerText: String = "",
         val audioRoutes: List<AudioRouteData>,
-        val selectedAudioRoute: AudioRoute
+        val selectedAudioRoute: AudioRoute,
+        val onDropData: OnDropData?
     ) : UiState, DialableUi {
 
         @Immutable
@@ -57,6 +59,7 @@ class CallContract {
         @Immutable data class OnItemDroppedOnItem(val firstIndex: Int?, val secondIndex: Int?) : Event()
         @Immutable data class OnRemoveCallFromConference(val callsId: String) : Event()
         @Immutable data class OnAddCallToConference(val callsId: String) : Event()
+        @Immutable object OnReleaseDropData : Event()
     }
 
     @Stable

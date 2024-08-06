@@ -41,6 +41,7 @@ fun DialerScreen(
             .padding(barPaddingValues)) {
         val (
             entryNumberPanel,
+            contactsButton,
             callButton,
             removeButton,
             backToCallButton,
@@ -87,6 +88,27 @@ fun DialerScreen(
                 bottom.linkTo(callButton.top, margin = 16.dp)
             }
         )
+
+        OutlinedButton( // Contacts
+            onClick = { onEvent(DialerContract.Event.OnContactsButtonClicked) },
+            shape = CircleShape,
+            modifier = Modifier
+                .semantics { testTagsAsResourceId = true }
+                .testTag("button_dialer_digit_one")
+                .constrainAs(contactsButton) {
+                    bottom.linkTo(parent.bottom, margin = 48.dp)
+                    end.linkTo(callButton.start, margin = 24.dp)
+                }
+                .size(72.dp),
+            colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
+            border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
+        ) {
+            Icon(
+                imageVector = ImageVector.vectorResource(id = R.drawable.ic_btn_contacts),
+                contentDescription = "contacts",
+                Modifier.size(42.dp)
+            )
+        }
 
         IconButton(
             onClick = { onEvent(DialerContract.Event.OnCallButtonClicked) },

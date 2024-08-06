@@ -6,6 +6,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.*
@@ -41,6 +42,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.dialer.NumberEntryPanel
 import com.exolve.voicedemo.features.call.CallContract.State.CallItemState
 import com.exolve.voicedemo.R
+import com.exolve.voicedemo.core.utils.OnDropActionSelectorView
 import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.platform.AudioRoute
@@ -109,6 +111,28 @@ fun OngoingCallScreen(
             state.value.audioRoutes,
             state.value.selectedAudioRoute
         )
+        if (state.value.onDropData != null) {
+            if (!state.value.calls.contains(state.value.onDropData!!.first)
+                || !state.value.calls.contains(state.value.onDropData!!.second)) {
+                onEvent(CallContract.Event.OnReleaseDropData)
+            }
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.2f))
+                .zIndex(1f)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = { onEvent(CallContract.Event.OnReleaseDropData) },
+                    )
+                }
+            ) {
+                OnDropActionSelectorView(
+                    data = state.value.onDropData!!,
+                    modifier = Modifier.align(Alignment.Center)
+                ) { onEvent(CallContract.Event.OnReleaseDropData) }
+            }
+        }
+
     }
 }
 
@@ -186,12 +210,16 @@ fun CurrentCallTextField(
                 deleteCharAt(lastIndex)
             }.toString()
         } else if(calls.isNotEmpty()) {
-            calls.find {
-                it.status == CallState.CONNECTED ||
-                        it.status == CallState.ERROR ||
-                        it.status == CallState.NEW
-            }?.number
-                ?: stringResource(id = R.string.call_screen_current_all_on_hold)
+            if(calls.find{ it.status == CallState.LOST_CONNECTION } != null){
+                stringResource(id = R.string.call_screen_current_no_connection)
+            } else {
+                calls.find {
+                    it.status == CallState.CONNECTED ||
+                            it.status == CallState.ERROR ||
+                            it.status == CallState.NEW
+                }?.number
+                    ?: stringResource(id = R.string.call_screen_current_all_on_hold)
+            }
         } else {
                stringResource(id = R.string.call_screen_current_call_ended)
         },
@@ -307,23 +335,6 @@ fun CallLineList(
                                                 "hovered on ${hoveredOn?.index}"
                                             )
                                         }
-                                    }
-                                    .let { getDraggedItem(it, startOffset, endOffset) }
-                                    ?.also { item ->
-                                        Log.d(
-                                            CALL_SCREEN,
-                                            "swap(key = $item.key current = $actualIndexOfDraggedItem , with = ${item.index}) listsize = ${list.size}"
-                                        )
-                                        onEvent(
-                                            CallContract.Event.OnItemsSwapped(
-                                                actualIndexOfDraggedItem ?: 0,
-                                                item.index
-                                            )
-                                        )
-                                        hoveredOn = null
-                                        isUnderTheAreaOfItem = false
-                                        draggedDistance = 0f
-                                        actualIndexOfDraggedItem = item.index
                                     }
                                 if (overScrollJob?.isActive == true) return@detectDragGesturesAfterLongPress
                                 checkOverseasOfList(
@@ -458,16 +469,27 @@ fun CallLineItem(
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
-            Text(
-                item.number + " ${item.status.toString().lowercase()}",
-                modifier = Modifier
-                    .semantics { testTagsAsResourceId = true }
-                    .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
-                    .padding(vertical = 8.dp),
-                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
-                fontSize = 17.sp,
-                color = colorResource(id = R.color.call_card_number_text)
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    item.number + " ${item.status.toString().lowercase()}",
+                    modifier = Modifier
+                        .semantics { testTagsAsResourceId = true }
+                        .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
+                        .padding(vertical = 8.dp)
+                        .weight(1f),
+                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                    fontSize = 17.sp,
+                    color = colorResource(id = R.color.call_card_number_text)
+                )
+                if (item.status == CallState.LOST_CONNECTION) {
+                    Image(
+                            painter = painterResource(id = R.drawable.no_wifi_icon),
+                            contentDescription = "Lost connection",
+                            modifier = Modifier.size(19.dp)
+                                .align(Alignment.CenterVertically),
+                        )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     // On Hold
@@ -509,6 +531,7 @@ fun CallLineItem(
                     // Incoming call
                     (item.status != CallState.CONNECTED) and
                     (item.status != CallState.ON_HOLD) and
+                    (item.status != CallState.LOST_CONNECTION) and
                     !item.isCallOutgoing -> {
                         val color = colorResource(id = R.color.mts_bg_grey)
                         OutlinedButton(

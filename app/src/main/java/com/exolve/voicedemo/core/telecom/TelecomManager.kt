@@ -123,9 +123,14 @@ class TelecomManager(private var context: Application) {
         telecomManagerState.value.calls.find { it.id == callId }?.resume()
     }
 
-    fun transferCall(callId: String, targetNumber: String) {
-        getCalls().find { it.id == callId }?.transfer(targetNumber)
-        Log.d(TELECOM_MANAGER, "transferCall: id = $callId, target number = $targetNumber")
+    fun transferToNumber(callId: String, targetNumber: String) {
+        getCalls().find { it.id == callId }?.transferToNumber(targetNumber)
+        Log.d(TELECOM_MANAGER, "transfer call $callId to number $targetNumber")
+    }
+
+    fun transferToCall(callId: String, targetCall: String) {
+        getCalls().find { it.id == callId }?.transferToCall(targetCall)
+        Log.d(TELECOM_MANAGER, "transfer call $callId to call $targetCall")
     }
 
     fun sendDtmf(callId: String, digits: String) {

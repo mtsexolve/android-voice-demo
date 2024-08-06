@@ -36,9 +36,19 @@
     <string name="top_bar_status_inprogress">in progress…</string>
     <string name="call_screen_current_conference">conference:</string>
     <string name="call_screen_current_all_on_hold">all on hold</string>
+    <string name="call_screen_current_no_connection">no connection</string>
     <string name="call_screen_current_call_ended">call ended</string>
     <string name="settings_logs_button">Send logs</string>
     <string name="background_running">Background running</string>
     <string name="calllocation_detect">Call location</string>
+    <string name="calls_action_conference">Сombine calls"</string>
+    <string name="calls_action_conference_hint">"Create a conference"</string>
+    <string name="calls_action_transfer">Transfer call"</string>
+    <string name="calls_action_transfer_hint">Merge calls and leave conversation"</string>
+    <string name="lost_connection">Lost connection</string>
+    <string name="clear_logs_title">Clear logs</string>
+    <string name="clear_logs_message">Do you want to remove old log files?</string>
+    <string name="clear_logs_confirm">Confirm</string>
+    <string name="clear_logs_cancel">Cancel</string>
 
 </resources>

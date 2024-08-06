@@ -40,6 +40,13 @@ class SharingProvider(private val context: Context) {
             }
     }
 
+    fun removeOldFiles() {
+        for (prefix in arrayOf<String>("sdk", "voip")) {
+            File(context.filesDir, "logs").listFiles { file -> file.name.startsWith(prefix) }
+            ?.sorted()?.dropLast(1)?.forEach() { it.delete() }
+        }
+    }
+
     private fun copyFiles() {
         val files = File(context.filesDir, "logs").listFiles { file ->
             file.length() > 0 && (file.name.startsWith("sdk") || file.name.startsWith("voip"))
