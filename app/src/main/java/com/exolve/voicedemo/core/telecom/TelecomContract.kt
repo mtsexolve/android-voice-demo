@@ -75,7 +75,6 @@ class TelecomContract {
 
     sealed class HardwareEvent : TelecomEvent {
         data class OnCallMuted(val call: Call) : HardwareEvent()
-        data class OnSpeakerActivated(val isActivated: Boolean) : HardwareEvent()
         @Immutable
         object OnAudioRouteChanged : HardwareEvent()
 

@@ -28,7 +28,6 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
 import com.exolve.voicedemo.features.bars.AppBottomNavigation
 import com.exolve.voicedemo.features.bars.AppTopBar
-import com.exolve.voicedemo.features.call.CallContract
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.features.settings.SettingsContract
@@ -106,18 +105,28 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestPermissionLauncher.launch(arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Manifest.permission.BLUETOOTH_CONNECT
-                else Manifest.permission.BLUETOOTH
-        ))
-        askNotificationPermission()
+        requestPermissions()
         initEventListeners(settingsViewModel, dialerViewModel)
         setContent {
             AndroidVoiceExampleTheme {
                 Surface { MainAppScreen(settingsViewModel, dialerViewModel) }
             }
         }
+    }
+
+    private fun requestPermissions() {
+        var permissions = arrayOf(
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.RECORD_AUDIO,
+            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                Manifest.permission.BLUETOOTH_CONNECT
+            else
+                Manifest.permission.BLUETOOTH)
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions += Manifest.permission.POST_NOTIFICATIONS
+        }
+        requestPermissionLauncher.launch(permissions)
     }
 
     private fun initEventListeners(
@@ -153,29 +162,6 @@ class MainActivity : ComponentActivity() {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
-
-    private fun askNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                Log.d(MAIN_ACTIVITY, "notification permissions granted")
-            } else if (shouldShowRequestPermissionRationale(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                )
-            ) {
-                //TODO: show and educational UI
-                Log.w(MAIN_ACTIVITY, "permission denied, should show rationale")
-                requestPermissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
-            } else {
-                Log.d(MAIN_ACTIVITY, "requesting notification permissions")
-                requestPermissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
-            }
-        }
-    }
-
-
 }
 
 @Composable

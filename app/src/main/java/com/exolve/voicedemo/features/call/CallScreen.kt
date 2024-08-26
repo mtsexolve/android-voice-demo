@@ -106,7 +106,6 @@ fun OngoingCallScreen(
                 },
             onEvent = onEvent,
             isMuted = isMuted(state),
-            isSpeakerPressed = state.value.isSpeakerPressed,
             currentCallId = state.value.currentCallId,
             state.value.audioRoutes,
             state.value.selectedAudioRoute
@@ -377,7 +376,7 @@ fun CallLineList(
                         if (hoveredOn != null) {
                             Log.d(
                                 CALL_SCREEN,
-                                "onDragEnd isDropOnelement = ${isUnderTheAreaOfItem}, drop on element = ${hoveredOn?.index}"
+                                "onDragEnd isDropOnElement = ${isUnderTheAreaOfItem}, drop on element = ${hoveredOn?.index}"
                             )
                             onEvent(
                                 CallContract.Event.OnItemDroppedOnItem(
@@ -415,20 +414,6 @@ fun CallLineList(
                 )
             }
         }
-    }
-}
-
-private fun LazyListItemInfo.getDraggedItem(
-    list: List<LazyListItemInfo>,
-    startOffset: Float,
-    endOffset: Float
-) = list.filterNot { item ->
-    (item.offset + item.size) < startOffset || item.offset > endOffset || index == item.index
-}.firstOrNull { item ->
-    val delta = startOffset - offset
-    when {
-        delta > 0 -> (endOffset > (item.offset + item.size))
-        else -> (startOffset < item.offset)
     }
 }
 
@@ -530,7 +515,6 @@ fun CallLineItem(
                     }
                     // Incoming call
                     (item.status != CallState.CONNECTED) and
-                    (item.status != CallState.ON_HOLD) and
                     (item.status != CallState.LOST_CONNECTION) and
                     !item.isCallOutgoing -> {
                         val color = colorResource(id = R.color.mts_bg_grey)
@@ -762,7 +746,6 @@ fun ControlPanel(
     modifier: Modifier,
     onEvent: (event: UiEvent) -> Unit,
     isMuted: Boolean,
-    isSpeakerPressed: Boolean,
     currentCallId: String,
     routes: List<AudioRouteData>,
     selectedRoute: AudioRoute
@@ -806,7 +789,6 @@ fun ControlPanel(
             },
             routes,
             onEvent,
-            isSpeakerPressed,
             selectedRoute == AudioRoute.UNKNOWN
         )
         // New Call add
@@ -961,7 +943,6 @@ private fun ButtonSpeaker(
     modifier: Modifier,
     routes: List<AudioRouteData>,
     onEvent: (event: UiEvent) -> Unit,
-    isSpeakerPressed: Boolean,
     enabled: Boolean
 ) {
     var showRouteSelector by remember { mutableStateOf(false) }
@@ -971,13 +952,13 @@ private fun ButtonSpeaker(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         var iconId = R.drawable.ic_route_earpiece
-        val active = routes.firstOrNull { it -> it.active }
-        if (active != null) {
-            Log.d(CALL_SCREEN, "active route ${active.name}")
-            iconId = when {
-                active.route == AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
-                active.route == AudioRoute.HEADSET -> R.drawable.ic_route_headset
-                active.route == AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
+        val activeRoute = routes.firstOrNull { it.isActive }
+        if (activeRoute != null) {
+            Log.d(CALL_SCREEN, "active route ${activeRoute.name}")
+            iconId = when (activeRoute.route) {
+                AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
+                AudioRoute.HEADSET -> R.drawable.ic_route_headset
+                AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
                 else -> R.drawable.ic_route_earpiece
             }
         } else {
@@ -1024,29 +1005,29 @@ private fun ButtonSpeaker(
                     DropdownMenuItem(
                         text = { Text(it.name) },
                         onClick = {
-                            if (!it.active) {
+                            if (!it.isActive) {
                                 onEvent(CallContract.Event.OnAudioRouteSelect(it.route))
                             }
                             showRouteSelector = false
                         },
                         leadingIcon = {
-                            val icon = when {
-                                it.route == AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
-                                it.route == AudioRoute.HEADSET -> R.drawable.ic_route_headset
-                                it.route == AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
-                                else  -> R.drawable.ic_route_earpiece
+                            val (icon, description) = when (it.route) {
+                                AudioRoute.SPEAKER -> Pair(R.drawable.ic_route_speaker, stringResource(com.exolve.voicesdk.R.string.audio_route_speaker))
+                                AudioRoute.HEADSET -> Pair(R.drawable.ic_route_headset, stringResource(com.exolve.voicesdk.R.string.audio_route_headset))
+                                AudioRoute.BLUETOOTH -> Pair(R.drawable.ic_route_bluetooth, "Bluetooth")
+                                else -> Pair(R.drawable.ic_route_earpiece, stringResource(com.exolve.voicesdk.R.string.audio_route_earpiece))
                             }
                             Icon(
                                 painter = painterResource(id = icon),
-                                contentDescription = "DTMF",
+                                contentDescription = description,
                                 modifier = Modifier.size(width = 30.dp, height = 31.dp),
                             )
                         },
                         trailingIcon = {
-                            if (it.active) {
+                            if (it.isActive) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_route_current),
-                                    contentDescription = "DTMF",
+                                    contentDescription = "Active Route",
                                     modifier = Modifier.size(width = 30.dp, height = 31.dp),
                                 )
                             }

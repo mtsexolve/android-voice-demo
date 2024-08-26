@@ -30,10 +30,10 @@ class CallViewModel(application: Application) :
     private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
 
     init {
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel init")
+        Log.d(CALL_VIEW_MODEL, "CallViewModel init")
         val routes = TelecomManager.getInstance().getAudioRoutes()
         if (routes.any { it.route == AudioRoute.BLUETOOTH }) {
-            if (routes.none { it.active && it.route == AudioRoute.BLUETOOTH }) {
+            if (routes.none { it.isActive && it.route == AudioRoute.BLUETOOTH }) {
                 TelecomManager.getInstance().setAudioRoute(AudioRoute.BLUETOOTH)
             }
         }
@@ -50,13 +50,14 @@ class CallViewModel(application: Application) :
         telecomManager.getCalls().forEach {
             calls.add(configureItemListStateObject(it, calls))
         }
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel: init list size :${calls.size}")
+        Log.d(CALL_VIEW_MODEL, "CallViewModel: init list size :${calls.size}")
         return State(
             currentCallNumber = calls.getOrNull(calls.lastIndex)?.number ?: "",
             currentCallId = calls.getOrNull(calls.lastIndex)?.callsId ?: "",
             calls,
             audioRoutes = telecomManager.getAudioRoutes(),
-            selectedAudioRoute = AudioRoute.UNKNOWN, // because user not selected any of
+            selectedAudioRoute = AudioRoute.UNKNOWN, // because the user didn't select any of
+            isSpeakerPressed = telecomManager.getAudioRoutes().any { it.isActive && it.route == AudioRoute.SPEAKER },
             onDropData = null
             )
     }
@@ -99,7 +100,7 @@ class CallViewModel(application: Application) :
                 if (uiState.value.audioRoutes.size > 2) {
                     requestAudioRoutes()
                 } else {
-                    handleSpeaker()
+                    toggleSpeaker()
                 }
             }
             is Event.OnMuteButtonClicked -> { muteCall() }
@@ -150,30 +151,30 @@ class CallViewModel(application: Application) :
         val newUiListOfCalls = uiState.value.calls.toMutableList()
         when {
             hasCallInUiList && call.state != CallState.DISCONNECTED -> {
-                Log.d(CALL_VIEW_MODEL, "CalLViewModel: upd list, hasCallInUiList && !isDisconnected  ")
+                Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list, hasCallInUiList && !isDisconnected  ")
                 newUiListOfCalls.apply {
                     val indexOfCall = this.indexOf(this.find { uiCall -> uiCall.callsId == call.id })
                     this[indexOfCall] = configureItemListStateObject(call = call, list = newUiListOfCalls)
                 }
             }
             !hasCallInUiList && call.state != CallState.DISCONNECTED -> {
-                Log.d(CALL_VIEW_MODEL, "CalLViewModel: upd list,  !hasCallInUiList && !isDisconnected ")
+                Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list,  !hasCallInUiList && !isDisconnected ")
                 newUiListOfCalls.add(configureItemListStateObject(call = call, list = newUiListOfCalls))
             }
             hasCallInUiList && call.state == CallState.DISCONNECTED -> {
-                Log.d(CALL_VIEW_MODEL, "CalLViewModel: upd list,  hasCallInUiList && isDisconnected")
+                Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list,  hasCallInUiList && isDisconnected")
                 newUiListOfCalls.apply {
                     this.removeAt(this.indexOf(this.find { uiCall -> uiCall.callsId == call.id }))
                 }
             }
         }
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel: upd list, telecomList size :${telecomManager.getCalls().size}")
+        Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list, telecomList size :${telecomManager.getCalls().size}")
         setState { copy(calls = newUiListOfCalls, hasConference = newUiListOfCalls.find { it.isInConference }?.isInConference ?: false) }
     }
 
     override suspend fun handleTelecomEvent(event: TelecomEvent) {
         if (event is CallEvent) {
-            Log.d(CALL_VIEW_MODEL, "CalLViewModel: handleTelecomEvent: $event ${event.call.id}")
+            Log.d(CALL_VIEW_MODEL, "CallViewModel: handleTelecomEvent: $event ${event.call.id}")
             updateUiListOfCalls(event.call)
             if(event is CallEvent.OnCallUserActionRequired){
                 when (event.pendingEvent) {
@@ -186,7 +187,7 @@ class CallViewModel(application: Application) :
                             }
                         )
                     }
-                    else -> Log.d(CALL_VIEW_MODEL, "CalLViewModel: no match pendingEvent")
+                    else -> Log.d(CALL_VIEW_MODEL, "CallViewModel: no match pendingEvent")
                 }
             }
         } else {
@@ -197,8 +198,6 @@ class CallViewModel(application: Application) :
     private fun handleHardwareEvent(event: TelecomEvent) {
         (event as? TelecomContract.HardwareEvent)?.let {
             when(event) {
-                is TelecomContract.HardwareEvent.OnSpeakerActivated ->
-                    setState { copy(isSpeakerPressed = event.isActivated) }
                 is TelecomContract.HardwareEvent.OnCallMuted ->
                     setState {
                         val call = uiState.value.calls.find { it.callsId ==  event.call.id }
@@ -212,13 +211,14 @@ class CallViewModel(application: Application) :
                 is TelecomContract.HardwareEvent.OnAudioRouteChanged -> {
                     val routes = TelecomManager.getInstance().getAudioRoutes()
                     if (uiState.value.selectedAudioRoute != AudioRoute.UNKNOWN
-                        && routes.none { it.active && it.route == uiState.value.selectedAudioRoute }) {
-                        return;
+                        && routes.none { it.isActive && it.route == uiState.value.selectedAudioRoute }) {
+                        return
                     }
                     val noBluetoothInRoutes = uiState.value.audioRoutes.none { it.route == AudioRoute.BLUETOOTH }
                     setState { copy(
                         audioRoutes = routes,
-                        selectedAudioRoute = AudioRoute.UNKNOWN
+                        selectedAudioRoute = AudioRoute.UNKNOWN,
+                        isSpeakerPressed = routes.any { it.route == AudioRoute.SPEAKER && it.isActive }
                     ) }
                     val isBluetoothInRoutes = routes.any { it.route == AudioRoute.BLUETOOTH }
                     if (noBluetoothInRoutes && isBluetoothInRoutes) {
@@ -239,7 +239,7 @@ class CallViewModel(application: Application) :
     }
 
     private fun transferCall(selectedCalNumber: String) {
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel: transfer call: selectedNumber = $selectedCalNumber")
+        Log.d(CALL_VIEW_MODEL, "CallViewModel: transfer call: selectedNumber = $selectedCalNumber")
         telecomManager.transferToNumber(
             uiState.value.currentCallId, selectedCalNumber.replace("[^0-9]".toRegex(), "")
         )
@@ -251,12 +251,12 @@ class CallViewModel(application: Application) :
     }
 
     private fun muteCall() {
-        Log.d(CALL_VIEW_MODEL, "CalLViewModel: muteCall")
+        Log.d(CALL_VIEW_MODEL, "CallViewModel: muteCall")
         if (!uiState.value.hasConference) {
             val callId = uiState.value.currentCallId
             val call = uiState.value.calls.find { it.callsId == callId }
             call?.let {
-                Log.d(CALL_VIEW_MODEL, "CalLViewModel: muteCall ${it.callsId} ${!it.isMuted}")
+                Log.d(CALL_VIEW_MODEL, "CallViewModel: muteCall ${it.callsId} ${!it.isMuted}")
                 telecomManager.muteCall(callId = callId, mute = !it.isMuted)
             }
             return
@@ -269,8 +269,10 @@ class CallViewModel(application: Application) :
         }
     }
 
-    private fun handleSpeaker() {
-        telecomManager.activateSpeaker(activateSpeaker = !uiState.value.isSpeakerPressed)
+    private fun toggleSpeaker() {
+        setAudioRoute(
+            if (uiState.value.isSpeakerPressed) AudioRoute.EARPIECE else AudioRoute.SPEAKER
+        )
     }
 
     private fun setAudioRoute(route: AudioRoute) {
@@ -305,15 +307,6 @@ class CallViewModel(application: Application) :
                 Log.d(CALL_VIEW_MODEL, "CallViewModel: uiEvent terminate all, ${it.callsId}")
                 telecomManager.terminateCall(it.callsId)
             }
-        }
-    }
-
-    private fun startConference(firstIndexInUiList: Int?, secondIndexInUiList: Int?) {
-        if (firstIndexInUiList != null && secondIndexInUiList != null) {
-            telecomManager.startConference(
-                uiState.value.calls.getOrNull(firstIndexInUiList)?.callsId ?: "",
-                uiState.value.calls.getOrNull(secondIndexInUiList)?.callsId ?: "",
-            )
         }
     }
 

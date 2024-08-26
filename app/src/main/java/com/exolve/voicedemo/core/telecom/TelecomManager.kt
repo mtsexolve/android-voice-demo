@@ -7,7 +7,7 @@ import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicesdk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import com.exolve.voicedemo.app.activities.*;
+import com.exolve.voicedemo.app.activities.*
 import com.exolve.voicesdk.platform.AudioRoute
 
 private const val TELECOM_MANAGER = "TelecomManager"
@@ -30,6 +30,7 @@ class TelecomManager(private var context: Application) {
     private val configuration: Configuration = Configuration
         .builder(context)
         .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
+        .enableTelecomManager(true)
         .enableSipTrace(true)
         .enableNotifications(true)
         .enableRingtone(true)
@@ -56,7 +57,7 @@ class TelecomManager(private var context: Application) {
                 telecomManagerEvent = _telecomEvents,
                 telecomManagerState = telecomManagerState,
                 context = context
-            ), context.mainLooper);
+            ), context.mainLooper)
             setRegistrationListener(RegistrationListener(this@TelecomManager,context), context.mainLooper)
             setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
         }
@@ -65,7 +66,7 @@ class TelecomManager(private var context: Application) {
 
     fun getVersionDescription(): String {
         val versionInfo : VersionInfo = Communicator.getInstance().getVersionInfo()
-        return "SDK ver.${versionInfo.buildVersion} env: ${if(versionInfo.environment.isNotEmpty()) versionInfo.environment else "default"}"
+        return "SDK ver.${versionInfo.buildVersion} env: ${versionInfo.environment.ifEmpty { "default" }}"
     }
 
 
@@ -146,10 +147,6 @@ class TelecomManager(private var context: Application) {
         secondCall?.let { call: Call -> firstCall?.createConference(call.id) }
     }
 
-    fun stopConference() {
-        getCalls().forEach { if (it.inConference()) it.removeFromConference() }
-    }
-
     fun removeCallFromConference(callId: String) {
         telecomManagerState.value.calls.find { it.id == callId }?.removeFromConference()
     }
@@ -163,17 +160,9 @@ class TelecomManager(private var context: Application) {
         telecomManagerState.value.calls.find { it.id == callId }?.mute(mute)
     }
 
-    fun activateSpeaker(activateSpeaker: Boolean) {
-        Log.d(TELECOM_MANAGER, "activateSpeaker: $activateSpeaker")
-        callClient.isSpeakerOn = activateSpeaker
-        CoroutineScope(Dispatchers.IO).launch {
-            _telecomEvents.emit(TelecomContract.HardwareEvent.OnSpeakerActivated(activateSpeaker))
-        }
-    }
-
     fun setAudioRoute(route: AudioRoute) {
         Log.d(TELECOM_MANAGER, "set audio route: $route")
-        callClient.setAudioRoute(route);
+        callClient.setAudioRoute(route)
     }
 
     fun getRegistrationState(): RegistrationState {
@@ -182,12 +171,12 @@ class TelecomManager(private var context: Application) {
 
     fun setBackgroundState() {
         Log.d(TELECOM_MANAGER, "setBackgroundState")
-        Communicator.getInstance().setApplicationState(ApplicationState.BACKGROUND);
+        Communicator.getInstance().setApplicationState(ApplicationState.BACKGROUND)
     }
 
     fun setForegroundState() {
         Log.d(TELECOM_MANAGER, "setForegroundState")
-        Communicator.getInstance().setApplicationState(ApplicationState.FOREGROUND);
+        Communicator.getInstance().setApplicationState(ApplicationState.FOREGROUND)
     }
 
     fun isBackgroundRunningEnabled(): Boolean {
