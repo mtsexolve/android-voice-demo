@@ -16,12 +16,13 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModel
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.exolve.voicedemo.app.navigation.SetupCallNavigation
+import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.telecom.PushProvider
 import com.exolve.voicedemo.core.telecom.TelecomContract
 import com.exolve.voicedemo.core.telecom.TelecomManager
@@ -29,6 +30,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
 import com.exolve.voicedemo.features.call.CallContract
 import com.exolve.voicedemo.features.call.CallViewModel
+import com.exolve.voicedemo.features.call.OngoingCallScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -94,7 +96,19 @@ class CallActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    OngoingCallScreen(ongoingCallViewModel = viewModel)
+                    val navController = rememberNavController()
+                    val controlDestination = stringResource(id = R.string.navigation_ongoing_call_control)
+                    NavHost(
+                        navController = navController,
+                        startDestination = controlDestination
+                    ) {
+                        composable(controlDestination) {
+                            OngoingCallScreen(
+                                ongoingCallViewModel = viewModel,
+                                onEvent = viewModel::setEvent
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -126,13 +140,13 @@ class CallActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Log.d(CALL_ACTIVITY, "onNewIntent")
 
         //Handle Android 12 (API 31) trampoline restrictions
         // https://developer.android.com/about/versions/12/behavior-changes-12#notification-trampolines
-        intent?.let { PushProvider.broadcastCallIntent(this, intent) }
+        PushProvider.broadcastCallIntent(this, intent)
     }
 
     private fun startActivityForGetContact() {
@@ -174,18 +188,5 @@ class CallActivity : ComponentActivity() {
         } else {
             Log.d(CALL_ACTIVITY, "handleContactResult: Result is not OK")
         }
-    }
-}
-
-@Composable
-fun OngoingCallScreen(
-    ongoingCallViewModel: ViewModel
-) {
-    val navController = rememberNavController()
-    if (ongoingCallViewModel is CallViewModel) {
-        SetupCallNavigation(
-            navController = navController,
-            ongoingCallViewModel = ongoingCallViewModel
-        )
     }
 }

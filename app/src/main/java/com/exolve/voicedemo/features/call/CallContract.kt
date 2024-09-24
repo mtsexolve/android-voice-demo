@@ -13,7 +13,6 @@ class CallContract {
 
     @Immutable
     data class State(
-        val currentCallNumber: String,
         val currentCallId: String,
         val calls: List<CallItemState>,
         val isHoldPressed: Boolean = false,
@@ -32,6 +31,7 @@ class CallContract {
         data class CallItemState(
             val isCallOutgoing: Boolean,
             val number: String,
+            val formattedNumber: String,
             val callsId: String,
             val status: CallState,
             val indexForUiTest: Int,

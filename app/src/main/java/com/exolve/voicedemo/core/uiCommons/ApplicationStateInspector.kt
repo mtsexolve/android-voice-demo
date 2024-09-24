@@ -8,17 +8,17 @@ import com.exolve.voicedemo.app.activities.MainActivity
 
 private const val APPLICATION_STATE_INSPECTOR = "ApplicationStateInspector"
 
-abstract class ApplicationStateInspector(
-) : Application.ActivityLifecycleCallbacks{
+abstract class ApplicationStateInspector : Application.ActivityLifecycleCallbacks {
     private var mainActivityActive = false
     private var startedActivities: MutableSet<String> = mutableSetOf()
 
     abstract fun inForegroundState()
     abstract fun inBackgroundState()
 
-    public fun isMainActivityActive(): Boolean {
+    fun isMainActivityActive(): Boolean {
         return mainActivityActive
     }
+
     override fun onActivityPaused(p0: Activity) {
         if (p0 is MainActivity) {
             mainActivityActive = false
@@ -29,7 +29,7 @@ abstract class ApplicationStateInspector(
     override fun onActivityStarted(p0: Activity) {
         val prevSize = startedActivities.size
         startedActivities.add(p0.localClassName)
-        if(prevSize != startedActivities.size && startedActivities.size == 1) {
+        if (prevSize != startedActivities.size && startedActivities.size == 1) {
             inForegroundState()
         }
         Log.d(APPLICATION_STATE_INSPECTOR, "onActivityStarted: ${p0.localClassName}")
@@ -46,7 +46,7 @@ abstract class ApplicationStateInspector(
     override fun onActivityStopped(p0: Activity) {
         val prevSize = startedActivities.size
         startedActivities.remove(p0.localClassName)
-        if(prevSize != startedActivities.size && startedActivities.size == 0) {
+        if (prevSize != startedActivities.size && startedActivities.size == 0) {
             Log.d(APPLICATION_STATE_INSPECTOR, "app in bg, all activities in bg")
             inBackgroundState()
         }

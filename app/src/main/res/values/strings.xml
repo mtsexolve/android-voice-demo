@@ -24,6 +24,7 @@
     <string name="button_end_call">End call</string>
     <string name="button_transfer_call">Transfer</string>
     <string name="bottom_navigation_dialer_title">Dialer</string>
+    <string name="bottom_navigation_account_title">Account</string>
     <string name="bottom_navigation_settings_title">Settings</string>
     <string name="navigation_ongoing_call_control">Control</string>
     <string name="dialer_toast_activate">Activate your account</string>
@@ -41,7 +42,8 @@
     <string name="settings_logs_button">Send logs</string>
     <string name="background_running">Background running</string>
     <string name="calllocation_detect">Call location</string>
-    <string name="calls_action_conference">Сombine calls"</string>
+    <string name="telecom_framework_integration">Telecom Framework integration</string>
+    <string name="calls_action_conference">Combine calls"</string>
     <string name="calls_action_conference_hint">"Create a conference"</string>
     <string name="calls_action_transfer">Transfer call"</string>
     <string name="calls_action_transfer_hint">Merge calls and leave conversation"</string>

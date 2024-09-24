@@ -34,6 +34,7 @@ fun AppBottomNavigation(navController: NavController) {
     val destinations = remember {
         immutableListOf(
             BottomNavigationDestinations.Dialer,
+            BottomNavigationDestinations.Account,
             BottomNavigationDestinations.Settings,
         )
     }
@@ -43,12 +44,12 @@ fun AppBottomNavigation(navController: NavController) {
         val navigationBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navigationBackStackEntry?.destination?.route
         destinations.forEach { destination ->
-            val desiredDestinattion = stringResource(id = destination.screenRouteStringId)
+            val desiredDestination = stringResource(id = destination.screenRouteStringId)
             BottomNavigationItem(
                 modifier = remember {
                     Modifier
                         .semantics { testTagsAsResourceId = true }
-                        .testTag("button_bar_${desiredDestinattion.lowercase()}")
+                        .testTag("button_bar_${desiredDestination.lowercase()}")
                 },
                 icon = {
                     Icon(
@@ -67,9 +68,9 @@ fun AppBottomNavigation(navController: NavController) {
                 selectedContentColor = colorResource(id = R.color.mts_red),
                 unselectedContentColor = colorResource(id = R.color.mts_grey),
                 alwaysShowLabel = true,
-                selected = currentRoute == desiredDestinattion,
+                selected = currentRoute == desiredDestination,
                 onClick = {
-                    navController.navigate(desiredDestinattion) {
+                    navController.navigate(desiredDestination) {
                         launchSingleTop = true
                         restoreState = true
                     }

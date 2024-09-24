@@ -38,10 +38,18 @@
             android:name=".app.activities.MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.AndroidVoiceExample">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="voicedemo"
+                    android:host="*" />
             </intent-filter>
             <meta-data
                 android:name="android.app.lib_name"

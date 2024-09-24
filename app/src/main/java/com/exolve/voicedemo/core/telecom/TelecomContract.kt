@@ -1,11 +1,7 @@
 package com.exolve.voicedemo.core.telecom
 
 import androidx.compose.runtime.Immutable
-import com.exolve.voicesdk.CallError
-import com.exolve.voicesdk.Call
-import com.exolve.voicesdk.RegistrationError
-import com.exolve.voicesdk.RegistrationState
-import com.exolve.voicesdk.CallPendingEvent
+import com.exolve.voicesdk.*
 
 class TelecomContract {
     data class State(
@@ -15,12 +11,12 @@ class TelecomContract {
         val registrationState: RegistrationState = RegistrationState.NOT_REGISTERED,
     )
 
-     open class RegistrationEvent: TelecomEvent {
-        class OnOffline: RegistrationEvent()
-        class OnNotRegistered: RegistrationEvent()
-        class OnRegistered: RegistrationEvent()
-        class OnRegistering: RegistrationEvent()
-        class OnNoConnection: RegistrationEvent()
+    open class RegistrationEvent : TelecomEvent {
+        class OnOffline : RegistrationEvent()
+        class OnNotRegistered : RegistrationEvent()
+        class OnRegistered : RegistrationEvent()
+        class OnRegistering : RegistrationEvent()
+        class OnNoConnection : RegistrationEvent()
         data class OnError(
             val error: RegistrationError,
             val errorDescription: String,
@@ -75,8 +71,9 @@ class TelecomContract {
 
     sealed class HardwareEvent : TelecomEvent {
         data class OnCallMuted(val call: Call) : HardwareEvent()
+
         @Immutable
-        object OnAudioRouteChanged : HardwareEvent()
+        data object OnAudioRouteChanged : HardwareEvent()
 
     }
 }

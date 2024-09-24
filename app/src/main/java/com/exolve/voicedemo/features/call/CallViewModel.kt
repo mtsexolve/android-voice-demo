@@ -52,7 +52,6 @@ class CallViewModel(application: Application) :
         }
         Log.d(CALL_VIEW_MODEL, "CallViewModel: init list size :${calls.size}")
         return State(
-            currentCallNumber = calls.getOrNull(calls.lastIndex)?.number ?: "",
             currentCallId = calls.getOrNull(calls.lastIndex)?.callsId ?: "",
             calls,
             audioRoutes = telecomManager.getAudioRoutes(),
@@ -68,6 +67,7 @@ class CallViewModel(application: Application) :
     ) = State.CallItemState(
         isCallOutgoing = call.isOutCall,
         number = call.number,
+        formattedNumber = call.formattedNumber,
         callsId = call.id,
         status = call.state,
         isInConference = call.inConference(),
@@ -84,14 +84,12 @@ class CallViewModel(application: Application) :
             is Event.OnResumeButtonClicked -> {
                 setState { copy(
                     currentCallId = event.callsId,
-                    currentCallNumber = uiState.value.calls.find {it.callsId == event.callsId}?.number ?: ""
                 ) }
                 resumeCall(event.callsId)
             }
             is Event.OnHoldButtonClicked -> {
                 setState { copy(
                     currentCallId = "",
-                    currentCallNumber = "",
                 ) }
                 holdCall(event.callsId)
             }
@@ -110,8 +108,7 @@ class CallViewModel(application: Application) :
             is Event.OnNewCallButtonClicked -> { setState { copy(isAddNewCallPressed = true) } }
             is Event.OnAcceptCallButtonClicked -> {
                 setState { copy(
-                    currentCallId = event.callsId,
-                    currentCallNumber = uiState.value.calls.find {it.callsId == event.callsId}?.number ?: ""
+                    currentCallId = event.callsId
                 ) }
                 acceptCall(event.callsId)
             }

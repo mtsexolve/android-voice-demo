@@ -2,7 +2,6 @@ package com.exolve.voicedemo.app.activities
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.database.Cursor
 import android.os.Build
 import android.os.Bundle
@@ -18,41 +17,45 @@ import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.exolve.voicedemo.app.navigation.SetupAppNavigation
+import com.exolve.voicedemo.app.navigation.BottomNavigationDestinations
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
+import com.exolve.voicedemo.features.account.AccountScreen
+import com.exolve.voicedemo.features.account.AccountViewModel
 import com.exolve.voicedemo.features.bars.AppBottomNavigation
 import com.exolve.voicedemo.features.bars.AppTopBar
 import com.exolve.voicedemo.features.dialer.DialerContract
+import com.exolve.voicedemo.features.dialer.DialerScreen
 import com.exolve.voicedemo.features.dialer.DialerViewModel
-import com.exolve.voicedemo.features.settings.SettingsContract
-import com.exolve.voicedemo.features.settings.SettingsViewModel
+import com.exolve.voicedemo.features.settings.*
 import kotlinx.coroutines.launch
 
 private const val MAIN_ACTIVITY = "MainActivity"
 
 class MainActivity : ComponentActivity() {
-    private val settingsViewModel: SettingsViewModel by viewModels()
     private val dialerViewModel: DialerViewModel by viewModels()
+    private val accountViewModel: AccountViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-            var granted: Boolean = true
-            for (permission in permissions) {
-                granted = granted && permission.value
-            }
+        var granted = true
+        for (permission in permissions) {
+            granted = granted && permission.value
+        }
 
-            if (granted) {
-                Log.i(MAIN_ACTIVITY, "permission granted")
-            } else {
-                Log.i(MAIN_ACTIVITY, "permission denied")
-            }
+        if (granted) {
+            Log.i(MAIN_ACTIVITY, "permission granted")
+        } else {
+            Log.i(MAIN_ACTIVITY, "permission denied")
+        }
     }
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -63,7 +66,8 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(Intent.ACTION_PICK).apply {
             type = ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
         }
-        Log.d(MAIN_ACTIVITY, "startActivity for get contact with intent $intent"
+        Log.d(
+            MAIN_ACTIVITY, "startActivity for get contact with intent $intent"
         )
         getContactResult.launch(intent)
     }
@@ -83,7 +87,7 @@ class MainActivity : ComponentActivity() {
         if (contactResult.resultCode == RESULT_OK) {
             Log.d(MAIN_ACTIVITY, "handleContactResult: Result is OK")
             val cursor: Cursor? = contactResult.data?.data?.let { uri ->
-                applicationContext.contentResolver.query(uri, null,null,null,null)
+                applicationContext.contentResolver.query(uri, null, null, null, null)
             }
             if (cursor != null && cursor.moveToFirst()) {
                 val numberColumnIndex: Int =
@@ -95,7 +99,8 @@ class MainActivity : ComponentActivity() {
                     copy(dialerText = number)
                 }
             } else {
-                Log.d(MAIN_ACTIVITY, "handleContactResult: invalid cursor"
+                Log.d(
+                    MAIN_ACTIVITY, "handleContactResult: invalid cursor"
                 )
             }
         } else {
@@ -107,16 +112,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestPermissions()
         initEventListeners(settingsViewModel, dialerViewModel)
+        handleDeepLink(intent)
         setContent {
             AndroidVoiceExampleTheme {
-                Surface { MainAppScreen(settingsViewModel, dialerViewModel) }
+                Surface { MainAppScreen(dialerViewModel, accountViewModel, settingsViewModel) }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent) {
+        accountViewModel.handleDeepLink(intent.data)
     }
 
     private fun requestPermissions() {
         var permissions = arrayOf(
             Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CALL_PHONE,
             Manifest.permission.RECORD_AUDIO,
             (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 Manifest.permission.BLUETOOTH_CONNECT
@@ -166,22 +182,45 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppScreen(
-    settingsViewModel: ViewModel,
-    dialerViewModel: ViewModel
+    dialerViewModel: ViewModel,
+    accountViewModel: ViewModel,
+    settingsViewModel: ViewModel
 ) {
     val navController = rememberNavController()
     Scaffold(
         modifier = remember { Modifier },
         bottomBar = { AppBottomNavigation(navController = navController) },
-        topBar = { AppTopBar(settingsViewModel as SettingsViewModel, remember { Modifier }) }
+        topBar = { AppTopBar(accountViewModel as AccountViewModel, remember { Modifier }) }
 
-    ) {
-            paddingValues ->
-        SetupAppNavigation(
+    ) { paddingValues ->
+        val dialerRoute = stringResource(id = BottomNavigationDestinations.Dialer.screenRouteStringId)
+        val accountRoute = stringResource(id = BottomNavigationDestinations.Account.screenRouteStringId)
+        val settingsRoute = stringResource(id = BottomNavigationDestinations.Settings.screenRouteStringId)
+        NavHost(
             navController = navController,
-            settingsViewModel as SettingsViewModel,
-            dialerViewModel as DialerViewModel,
-            paddingValues
-        )
+            startDestination = dialerRoute,
+        ) {
+            composable(dialerRoute) {
+                DialerScreen(
+                    viewModel = dialerViewModel as DialerViewModel,
+                    onEvent  = dialerViewModel::setEvent,
+                    barPaddingValues = paddingValues
+                )
+            }
+            composable(accountRoute) {
+                AccountScreen(
+                    viewModel = accountViewModel as AccountViewModel,
+                    onEvent = accountViewModel::setEvent,
+                    barPaddingValues = paddingValues,
+                )
+            }
+            composable(settingsRoute) {
+                SettingsScreen(
+                    viewModel = settingsViewModel as SettingsViewModel,
+                    onEvent = settingsViewModel::setEvent,
+                    barPaddingValues = paddingValues,
+                )
+            }
+        }
     }
 }

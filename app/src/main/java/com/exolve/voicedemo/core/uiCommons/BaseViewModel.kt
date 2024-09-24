@@ -59,11 +59,6 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
 
     }
 
-    protected fun setEffect(builder: () -> Effect) {
-        val effectValue = builder()
-        viewModelScope.launch { _effect.send(effectValue) }
-    }
-
     private fun subscribeOnEvents() {
         viewModelScope.launch {
             event.collect {
@@ -86,10 +81,10 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
             return {}
         }
         else {
-            return PermissionRequester.requestPermissions(getApplication(), *permissions) {
-                if (it.all{it.state == PermissionState.GRANTED}) {
+            return PermissionRequester.requestPermissions(getApplication(), *permissions) { permissionResults ->
+                if (permissionResults.all{it.state == PermissionState.GRANTED}) {
                     onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)
-                } else if (it.any{it.state == PermissionState.GRANTED}) {
+                } else if (permissionResults.any{it.state == PermissionState.GRANTED}) {
                     onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
                 }
                 else {

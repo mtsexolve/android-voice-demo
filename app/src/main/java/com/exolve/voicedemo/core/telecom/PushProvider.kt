@@ -3,11 +3,7 @@ package com.exolve.voicedemo.core.telecom
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.exolve.voicesdk.ApplicationState
 import com.exolve.voicesdk.Communicator
-import com.exolve.voicesdk.Configuration
-import com.exolve.voicesdk.LogConfiguration
-import com.exolve.voicesdk.LogLevel
 import com.exolve.voicesdk.PushNotificationProvider
 
 private const val PUSH_PROVIDER = "PushProvider"

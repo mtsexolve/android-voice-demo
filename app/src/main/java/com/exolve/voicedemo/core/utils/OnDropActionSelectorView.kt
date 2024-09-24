@@ -89,7 +89,7 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                 )
 
                 Text(
-                    text = data.first.number,
+                    text = data.first.formattedNumber,
                     style = textStyle,
                     modifier = Modifier.constrainAs(textFirst) {
                         bottom.linkTo(iconFirst.bottom)
@@ -106,7 +106,7 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                 )
 
                 Text(
-                    text = data.second.number,
+                    text = data.second.formattedNumber,
                     style = textStyle,
                     modifier = Modifier.constrainAs(textSecond) {
                         bottom.linkTo(iconSecond.bottom)

@@ -22,13 +22,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import com.exolve.voicedemo.features.settings.SettingsViewModel
 import com.exolve.voicedemo.R
+import com.exolve.voicedemo.features.account.AccountViewModel
 import com.exolve.voicesdk.RegistrationState
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun AppTopBar(viewModel: SettingsViewModel, modifier: Modifier) {
+fun AppTopBar(viewModel: AccountViewModel, modifier: Modifier) {
     val state by viewModel.uiState.collectAsState()
     TopAppBar(
         backgroundColor = colorResource(id = R.color.white),

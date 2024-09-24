@@ -4,38 +4,31 @@ import androidx.compose.runtime.Immutable
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEffect
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiState
-import com.exolve.voicesdk.RegistrationState
+import com.exolve.voicesdk.TelecomIntegrationMode
 
 class SettingsContract {
+
     // UI view state
     @Immutable
     data class State(
-        val number: String,
-        val password: String,
-        val token: String,
         val versionDescription: String,
-        val registrationState: RegistrationState,
         val voipBackgroundRunning: Boolean,
-        val detectCallLocation: Boolean
+        val detectCallLocation: Boolean,
+        val telecomManagerMode: TelecomIntegrationMode
     ) : UiState
+
     // Events that user performs
     @Immutable
     sealed class Event : UiEvent {
-        @Immutable object OnActivateClicked : Event()
-        @Immutable object OnBackToCallActivityClicked : Event()
-        @Immutable data class UserTexFieldChanged(override val textState: String) : Event(), FillableLoginField
-        @Immutable data class PasswordTexFieldChanged(override val textState: String) : Event(), FillableLoginField
-        @Immutable object OnSendLogsClicked : Event()
-        @Immutable object OnCopyButtonClicked : Event()
+        @Immutable data object OnBackToCallActivityClicked : Event()
+        @Immutable data object OnSendLogsClicked : Event()
         @Immutable data class OnBackgroundRunningChanged(val enabled: Boolean) : Event()
         @Immutable data class OnCallLocationDetectChanged(val enabled: Boolean) : Event()
+        @Immutable data class OnTelecomManagerModeChanged(val mode: TelecomIntegrationMode) : Event()
     }
+
     //Side effects
     @Immutable
     sealed class Effect : UiEffect
-
-    interface FillableLoginField {
-        val textState: String
-    }
 
 }

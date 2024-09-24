@@ -4,11 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
-import com.exolve.voicesdk.Call
-import com.exolve.voicesdk.CallError
-import com.exolve.voicesdk.CallPendingEvent
-import com.exolve.voicesdk.CallUserAction
-import com.exolve.voicesdk.ICallsListener
+import com.exolve.voicesdk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,14 +22,18 @@ class CallsListener(
 ) : ICallsListener {
 
     override fun callNew(p0: Call?) {
-        Log.d(CALLS_LISTENER, "(markedLog): callNew(). Call ID: ${p0?.id}, " +
-                "listsize = ${telecomManager.getCalls().size}")
+        Log.d(
+            CALLS_LISTENER, "(markedLog): callNew(). Call ID: ${p0?.id}, " +
+                    "total calls: ${telecomManager.getCalls().size}"
+        )
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {
-                telecomManager.setState { copy(
-                    calls = telecomManagerState.value.calls.apply { add(it) },
-                    currentCall = p0,
-                ) }
+                telecomManager.setState {
+                    copy(
+                        calls = telecomManagerState.value.calls.apply { add(it) },
+                        currentCall = p0,
+                    )
+                }
                 telecomManagerEvent.emit(CallEvent.OnNewCall(it))
             }
         }
@@ -43,9 +43,11 @@ class CallsListener(
         Log.d(CALLS_LISTENER, "callConnected(). Call ID: ${p0?.id}")
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {
-                telecomManager.setState { copy(currentCall = p0 ,calls = telecomManagerState.value.calls.apply {
-                    this[this.indexOfFirst { other_call: Call -> other_call.id == it.id }] = it
-                })}
+                telecomManager.setState {
+                    copy(currentCall = p0, calls = telecomManagerState.value.calls.apply {
+                        this[this.indexOfFirst { otherCall: Call -> otherCall.id == it.id }] = it
+                    })
+                }
                 telecomManagerEvent.emit(CallEvent.OnCallEstablished(p0))
             }
         }
@@ -92,9 +94,11 @@ class CallsListener(
     override fun callConnectionLost(call: Call) {
         Log.d(CALLS_LISTENER, "callConnectionLost(). Call ID: ${call.id}")
         CoroutineScope(Dispatchers.IO).launch {
-            telecomManager.setState { copy(calls = telecomManagerState.value.calls.apply {
-                this[this.indexOfFirst { other_call: Call -> other_call.id == call.id }] = call
-            })}
+            telecomManager.setState {
+                copy(calls = telecomManagerState.value.calls.apply {
+                    this[this.indexOfFirst { otherCall: Call -> otherCall.id == call.id }] = call
+                })
+            }
             telecomManagerEvent.emit(CallEvent.OnCallConnectionLost(call))
         }
     }
@@ -108,8 +112,8 @@ class CallsListener(
                     Toast.makeText(
                         context,
                         "Call error: $p2",
-                        Toast.LENGTH_SHORT)
-                        .show();
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
                 telecomManager.setState {
                     copy(
@@ -118,7 +122,7 @@ class CallsListener(
                             telecomManagerState.value.calls.apply { remove(p0) }.firstOrNull()
                         } else telecomManagerState.value.currentCall,
                         calls = telecomManagerState.value.calls.apply { remove(p0) },
-                        )
+                    )
                 }
                 telecomManagerEvent.emit(CallEvent.OnCallTerminated(p0))
             }
@@ -135,27 +139,35 @@ class CallsListener(
                 telecomManagerEvent.emit(CallEvent.OnCallUserActionRequired(call, pendingEvent))
             }
         }
-        var toastMessage: String
-        when(action){
-            CallUserAction.NEEDS_LOCATION_ACCESS-> toastMessage = "No location access for "+if(pendingEvent == CallPendingEvent.ACCEPT_CALL) {"accept"} else {"answering"} +" call."
-            CallUserAction.ENABLE_LOCATION_PROVIDER-> toastMessage = "Disabled access to geolocation in notification panel"
-            null -> toastMessage = "Call location error: action is null"
+
+        val toastMessage = when (action) {
+            CallUserAction.NEEDS_LOCATION_ACCESS -> "No location access for " + if (pendingEvent == CallPendingEvent.ACCEPT_CALL) {
+                "accept"
+            } else {
+                "answering"
+            } + " call."
+
+            CallUserAction.ENABLE_LOCATION_PROVIDER -> "Disabled access to geolocation in notification panel"
+            null -> "Call location error: action is null"
         }
         CoroutineScope(Dispatchers.Main).launch {
             Toast.makeText(
                 context,
                 toastMessage,
-                Toast.LENGTH_SHORT)
-                .show();
+                Toast.LENGTH_SHORT
+            )
+                .show()
         }
     }
 
     override fun callInConference(p0: Call?, p1: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {
-                telecomManager.setState { copy(calls = telecomManagerState.value.calls.apply {
-                    this[this.indexOfFirst { call: Call -> call.id == p0.id }] = it
-                })}
+                telecomManager.setState {
+                    copy(calls = telecomManagerState.value.calls.apply {
+                        this[this.indexOfFirst { call: Call -> call.id == p0.id }] = it
+                    })
+                }
                 Log.d(CALLS_LISTENER, "callInConference(). Call ID:  ${p0.id}, inConf = $p1")
                 telecomManagerEvent.emit(CallEvent.OnConferenceStarted(it, p1))
             }

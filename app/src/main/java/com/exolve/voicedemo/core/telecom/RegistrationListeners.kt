@@ -3,10 +3,9 @@ package com.exolve.voicedemo.core.telecom
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import com.exolve.voicedemo.core.telecom.TelecomContract.RegistrationEvent
 import com.exolve.voicesdk.IRegistrationListener
 import com.exolve.voicesdk.RegistrationError
-import com.exolve.voicesdk.RegistrationState
-import com.exolve.voicedemo.core.telecom.TelecomContract.RegistrationEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,28 +20,34 @@ class RegistrationListener(
     override fun notRegistered() {
         handleRegistrationCallback(RegistrationEvent.OnNotRegistered())
     }
+
     override fun offline() {
         handleRegistrationCallback(RegistrationEvent.OnOffline())
     }
+
     override fun noConnection() {
         handleRegistrationCallback(RegistrationEvent.OnNoConnection())
     }
-    override fun error(p0: RegistrationError, p1: String ) {
+
+    override fun error(p0: RegistrationError, p1: String) {
         handleRegistrationCallback(RegistrationEvent.OnError(p0, p1))
         CoroutineScope(Dispatchers.Main).launch {
             Toast.makeText(
                 context,
-                "Registration error: " + p1,
-                Toast.LENGTH_SHORT)
-                .show();
+                "Registration error: $p1",
+                Toast.LENGTH_SHORT
+            ).show();
         }
     }
+
     override fun registered() {
         handleRegistrationCallback(RegistrationEvent.OnRegistered())
     }
+
     override fun registering() {
         handleRegistrationCallback(RegistrationEvent.OnRegistering())
     }
+
     private fun handleRegistrationCallback(
         registrationEvent: RegistrationEvent
     ) {

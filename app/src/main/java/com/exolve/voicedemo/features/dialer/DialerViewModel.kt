@@ -50,6 +50,7 @@ class DialerViewModel(application: Application) :
         }
     }
 
+
     private fun updateTextFieldState(value: String) {
         setState { copy(dialerText = dialerText + value) }
     }

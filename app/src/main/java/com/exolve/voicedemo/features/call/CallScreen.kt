@@ -201,7 +201,7 @@ fun CurrentCallTextField(
                         ?.also {conferenceCall ->
                             this.append(
                                 " ",
-                                conferenceCall.number,
+                                conferenceCall.formattedNumber,
                                 ","
                             )
                         }
@@ -216,7 +216,7 @@ fun CurrentCallTextField(
                     it.status == CallState.CONNECTED ||
                             it.status == CallState.ERROR ||
                             it.status == CallState.NEW
-                }?.number
+                }?.formattedNumber
                     ?: stringResource(id = R.string.call_screen_current_all_on_hold)
             }
         } else {
@@ -456,7 +456,7 @@ fun CallLineItem(
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    item.number + " ${item.status.toString().lowercase()}",
+                    item.formattedNumber + " ${item.status.toString().lowercase()}",
                     modifier = Modifier
                         .semantics { testTagsAsResourceId = true }
                         .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
@@ -479,7 +479,7 @@ fun CallLineItem(
                 when {
                     // On Hold
                     item.status == CallState.ON_HOLD -> {
-                        val color = colorResource(id = R.color.mts_bg_grey)
+                        val newColor = colorResource(id = R.color.mts_bg_grey)
                         if (hasConference && (conferenceSize < 5)) ButtonAddToConference(onEvent = onEvent, item = item)
                         ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
                         OutlinedButton(
@@ -489,10 +489,10 @@ fun CallLineItem(
                                 .testTag("button_callscreen_list_item_resume_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
                             colors = ButtonColors(
-                                containerColor = color,
-                                contentColor = color,
-                                disabledContainerColor = color,
-                                disabledContentColor = color
+                                containerColor = newColor,
+                                contentColor = newColor,
+                                disabledContainerColor = newColor,
+                                disabledContentColor = newColor
                             ),
                             contentPadding = PaddingValues(0.dp),
                         ) {
@@ -517,7 +517,7 @@ fun CallLineItem(
                     (item.status != CallState.CONNECTED) and
                     (item.status != CallState.LOST_CONNECTION) and
                     !item.isCallOutgoing -> {
-                        val color = colorResource(id = R.color.mts_bg_grey)
+                        val newColor = colorResource(id = R.color.mts_bg_grey)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnAcceptCallButtonClicked(item.callsId)) },
                             //shape = CircleShape,
@@ -526,10 +526,10 @@ fun CallLineItem(
                                 .testTag("button_callscreen_list_item_accept_call_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
                             colors = ButtonColors(
-                                containerColor = color,
-                                contentColor = color,
-                                disabledContainerColor = color,
-                                disabledContentColor = color
+                                containerColor = newColor,
+                                contentColor = newColor,
+                                disabledContainerColor = newColor,
+                                disabledContentColor = newColor
                             ),
 
                             contentPadding = PaddingValues(0.dp)
@@ -555,7 +555,7 @@ fun CallLineItem(
                     }
                     // Ongoing call, resumed
                     (item.status == CallState.CONNECTED) -> {
-                        val color = colorResource(id = R.color.mts_bg_grey)
+                        val newColor = colorResource(id = R.color.mts_bg_grey)
                         ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnHoldButtonClicked(item.callsId)) },
@@ -565,10 +565,10 @@ fun CallLineItem(
                                 .testTag("button_callscreen_list_item_hold_${item.indexForUiTest}"),
                             border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
                             colors = ButtonColors(
-                                containerColor = color,
-                                contentColor = color,
-                                disabledContainerColor = color,
-                                disabledContentColor = color
+                                containerColor = newColor,
+                                contentColor = newColor,
+                                disabledContainerColor = newColor,
+                                disabledContentColor = newColor
                             ),
                             contentPadding = PaddingValues(0.dp),
                         ) {
@@ -618,7 +618,7 @@ fun ConferenceLineItem(
         colorResource(id = R.color.mts_bg_grey)//if (!item.isInConference) colorResource(id = R.color.mts_bg_grey) else colorResource(id = R.color.mts_text_grey)
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp)) {
             Text(
-                item.number,
+                item.formattedNumber,
                 modifier = Modifier
                     .semantics { testTagsAsResourceId = true }
                     .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")

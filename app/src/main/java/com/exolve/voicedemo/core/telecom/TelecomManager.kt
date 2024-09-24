@@ -30,12 +30,12 @@ class TelecomManager(private var context: Application) {
     private val configuration: Configuration = Configuration
         .builder(context)
         .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
-        .enableTelecomManager(true)
         .enableSipTrace(true)
         .enableNotifications(true)
         .enableRingtone(true)
         .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
         .enableDetectCallLocation(SettingsRepository(context).isDetectCallLocationEnabled())
+        .telecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
         .notificationConfiguration(
             NotificationConfiguration().apply {
                 callActivityClass = CallActivity::class.java.canonicalName
@@ -45,9 +45,9 @@ class TelecomManager(private var context: Application) {
         )
         .build()
 
-    private val callClient: CallClient = Communicator
-        .initialize(context, configuration, ApplicationState.BACKGROUND)
-        .callClient
+    private  val communicator: Communicator = Communicator.initialize(context, configuration, ApplicationState.BACKGROUND)
+
+    private val callClient: CallClient = communicator.callClient
 
     init {
         Log.d(TELECOM_MANAGER, "init: callClient = $callClient")
@@ -65,7 +65,7 @@ class TelecomManager(private var context: Application) {
 
 
     fun getVersionDescription(): String {
-        val versionInfo : VersionInfo = Communicator.getInstance().getVersionInfo()
+        val versionInfo : VersionInfo = communicator.getVersionInfo()
         return "SDK ver.${versionInfo.buildVersion} env: ${versionInfo.environment.ifEmpty { "default" }}"
     }
 
@@ -76,10 +76,10 @@ class TelecomManager(private var context: Application) {
 
     fun activateAccount(accountModel: Account?) {
         Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel?.number}")
-        if (Communicator.getInstance().callClient.registrationState != RegistrationState.REGISTERED) {
+        if (callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
                 accountModel?.let {  SettingsRepository(context).saveAccountDetails(accountModel)}
-                Communicator.getInstance().run {
+                communicator.run {
                     callClient.register(accountModel?.number ?: " ", accountModel?.password ?: " ")
                 }
             }
@@ -91,7 +91,7 @@ class TelecomManager(private var context: Application) {
     fun unregisterAccount() {
         Log.d(TELECOM_MANAGER, "deactivateAccount")
         CoroutineScope(Dispatchers.IO).launch {
-            Communicator.getInstance().callClient.unregister()
+            callClient.unregister()
         }
     }
 
@@ -171,20 +171,20 @@ class TelecomManager(private var context: Application) {
 
     fun setBackgroundState() {
         Log.d(TELECOM_MANAGER, "setBackgroundState")
-        Communicator.getInstance().setApplicationState(ApplicationState.BACKGROUND)
+        communicator.setApplicationState(ApplicationState.BACKGROUND)
     }
 
     fun setForegroundState() {
         Log.d(TELECOM_MANAGER, "setForegroundState")
-        Communicator.getInstance().setApplicationState(ApplicationState.FOREGROUND)
+        communicator.setApplicationState(ApplicationState.FOREGROUND)
     }
 
     fun isBackgroundRunningEnabled(): Boolean {
-        return Communicator.getInstance().configurationManager.isBackgroundRunningEnabled
+        return communicator.configurationManager.isBackgroundRunningEnabled
     }
 
     fun setBackgroundRunningEnabled(enable: Boolean) {
-        Communicator.getInstance().configurationManager.isBackgroundRunningEnabled = enable
+        communicator.configurationManager.isBackgroundRunningEnabled = enable
         SettingsRepository(context).setBackgroundRunningEnabled(enable)
     }
 
@@ -193,12 +193,21 @@ class TelecomManager(private var context: Application) {
     }
 
     fun setDetectCallLocationEnabled(enable: Boolean) {
-        Communicator.getInstance().configurationManager.setDetectCallLocationEnabled(enable)
+        communicator.configurationManager.setDetectCallLocationEnabled(enable)
         SettingsRepository(context).setDetectCallLocationEnabled(enable)
     }
 
     fun setToken(token: String) {
         CoroutineScope(Dispatchers.IO).launch { setState { copy(token = token) } }
+    }
+
+    fun telecomManagerIntegrationMode(): TelecomIntegrationMode {
+        return communicator.configurationManager.telecomIntegrationMode
+    }
+
+    fun setTelecomIntegrationMode(mode: TelecomIntegrationMode) {
+        communicator.configurationManager.telecomIntegrationMode = mode
+        SettingsRepository(context).setTelecomManagerMode(mode)
     }
 
     suspend fun setState(reduce: TelecomContract.State.() -> TelecomContract.State) {

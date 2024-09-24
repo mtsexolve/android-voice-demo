@@ -17,11 +17,11 @@ class DialerContract {
 
     @Immutable
     sealed class Event : UiEvent {
-        @Immutable object OnCallButtonClicked : Event()
+        @Immutable data object OnCallButtonClicked : Event()
         @Immutable data class OnDigitButtonClicked(val index: String) : Event()
         @Immutable data class OnRemoveButtonClicked(val longClicked: Boolean) : Event()
-        @Immutable object OnBackToCallActivityClicked : Event()
-        @Immutable object OnContactsButtonClicked : Event()
+        @Immutable data object OnBackToCallActivityClicked : Event()
+        @Immutable data object OnContactsButtonClicked : Event()
     }
 
     @Immutable
