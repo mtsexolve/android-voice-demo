@@ -43,6 +43,11 @@
     <string name="background_running">Background running</string>
     <string name="calllocation_detect">Call location</string>
     <string name="telecom_framework_integration">Telecom Framework integration</string>
+    <string name="sip_traces">Enable SIP traces</string>
+    <string name="log_level">Log level</string>
+    <string name="use_encryption">Use encryption</string>
+    <string name="environment">Environment</string>
+    <string name="restart_app">Restart application</string>
     <string name="calls_action_conference">Combine calls"</string>
     <string name="calls_action_conference_hint">"Create a conference"</string>
     <string name="calls_action_transfer">Transfer call"</string>

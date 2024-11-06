@@ -29,8 +29,9 @@ class TelecomManager(private var context: Application) {
 
     private val configuration: Configuration = Configuration
         .builder(context)
-        .logConfiguration(LogConfiguration.builder().logLevel(LogLevel.DEBUG).build())
-        .enableSipTrace(true)
+        .logConfiguration(LogConfiguration.builder().logLevel(logLevel()).build())
+        .useSecureConnection(isEncryptionEnabled())
+        .enableSipTrace(isSipTracesEnabled())
         .enableNotifications(true)
         .enableRingtone(true)
         .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
@@ -45,11 +46,14 @@ class TelecomManager(private var context: Application) {
         )
         .build()
 
-    private  val communicator: Communicator = Communicator.initialize(context, configuration, ApplicationState.BACKGROUND)
+    private val communicator: Communicator
 
-    private val callClient: CallClient = communicator.callClient
+    private val callClient: CallClient
 
     init {
+        val env = SettingsRepository(context).getEnvironment()
+        communicator = Communicator.initialize(context, configuration, ApplicationState.BACKGROUND, env)
+        callClient = communicator.callClient
         Log.d(TELECOM_MANAGER, "init: callClient = $callClient")
         callClient.run {
             setCallsListener(CallsListener(
@@ -65,10 +69,9 @@ class TelecomManager(private var context: Application) {
 
 
     fun getVersionDescription(): String {
-        val versionInfo : VersionInfo = communicator.getVersionInfo()
+        val versionInfo : VersionInfo = communicator.versionInfo
         return "SDK ver.${versionInfo.buildVersion} env: ${versionInfo.environment.ifEmpty { "default" }}"
     }
-
 
     suspend fun emitTelecomEvent(event: TelecomEvent) {
         _telecomEvents.emit(event)
@@ -137,6 +140,10 @@ class TelecomManager(private var context: Application) {
     fun sendDtmf(callId: String, digits: String) {
         Log.d(TELECOM_MANAGER, "sendDtmf: id = $callId, digits = $digits")
         telecomManagerState.value.calls.find { it.id == callId }?.sendDtmf(digits)
+    }
+
+    fun qualityRating(callId: String): Float? {
+        return telecomManagerState.value.calls.find { it.id == callId }?.statistics?.currentRating
     }
 
     fun startConference(firstCallId: String, secondCallId: String) {
@@ -208,6 +215,46 @@ class TelecomManager(private var context: Application) {
     fun setTelecomIntegrationMode(mode: TelecomIntegrationMode) {
         communicator.configurationManager.telecomIntegrationMode = mode
         SettingsRepository(context).setTelecomManagerMode(mode)
+    }
+
+    fun isSipTracesEnabled(): Boolean {
+        return SettingsRepository(context).isSipTracesEnabled()
+    }
+
+    fun setSipTracesEnabled(enabled: Boolean) {
+        SettingsRepository(context).setSipTracesEnabled(enabled)
+    }
+
+    fun logLevel(): LogLevel {
+        return SettingsRepository(context).getLogLevel()
+    }
+
+    fun setLogLevel(level: LogLevel) {
+        SettingsRepository(context).setLogLevel(level)
+    }
+
+    fun isEncryptionEnabled(): Boolean {
+        return SettingsRepository(context).isEncryptionEnabled()
+    }
+
+    fun setEncryptionEnabled(enabled: Boolean) {
+        SettingsRepository(context).setEncryptionEnabled(enabled)
+    }
+
+    fun currentEnvironment(): String {
+        return communicator.versionInfo.environment
+    }
+
+    fun availableEnvironments(): List<String> {
+        val arr = buildList {
+            add("default")
+            addAll(Communicator.getAvailableEnvironments() as List<String>)
+        }
+        return arr
+    }
+
+    fun setEnvironment(environment: String) {
+        SettingsRepository(context).setEnvironment(environment)
     }
 
     suspend fun setState(reduce: TelecomContract.State.() -> TelecomContract.State) {

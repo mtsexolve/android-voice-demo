@@ -10,11 +10,11 @@ import com.exolve.voicesdk.platform.AudioRoute
 
 @Immutable
 class CallContract {
-
     @Immutable
     data class State(
         val currentCallId: String,
         val calls: List<CallItemState>,
+        val callsHash: Int = 0,
         val isHoldPressed: Boolean = false,
         val isSpeakerPressed: Boolean = false,
         val isTransferPressed: Boolean = false,
@@ -36,8 +36,16 @@ class CallContract {
             val status: CallState,
             val indexForUiTest: Int,
             val isInConference: Boolean = false,
-            val isMuted: Boolean = false
-        )
+            val isMuted: Boolean = false,
+            var duration: UInt,
+            var qualityRating: Float = 5.0f
+        ) {
+            fun isActive(): Boolean {
+                return status == CallState.CONNECTED ||
+                        status == CallState.LOST_CONNECTION ||
+                        status == CallState.ON_HOLD
+            }
+        }
     }
 
     @Immutable

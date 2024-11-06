@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -474,8 +475,40 @@ fun CallLineItem(
                                 .align(Alignment.CenterVertically),
                         )
                 }
+                if (item.status == CallState.CONNECTED) {
+                    //Spacer(Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier.size(10.dp)
+                            .align(Alignment.CenterVertically)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    item.qualityRating > 4.2 -> {
+                                        Color.Green
+                                    }
+                                    item.qualityRating > 2.5 -> {
+                                        Color.Yellow
+                                    }
+                                    item.qualityRating >= 0.0 -> {
+                                        Color.Red
+                                    }
+                                    else -> Color.Transparent
+                                }
+                            )
+                    )
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                if (item.isActive()) {
+                    Text(
+                        text = formatDuration(item.duration),
+                        fontSize = 16.sp,
+                        style = TextStyle(fontFamily = FontFamily(Font(R.font.mtscompact_regular))),
+                        color = Color.Gray
+                    )
+                }
+                Spacer(Modifier.weight(1f))
                 when {
                     // On Hold
                     item.status == CallState.ON_HOLD -> {
@@ -958,6 +991,7 @@ private fun ButtonSpeaker(
             iconId = when (activeRoute.route) {
                 AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
                 AudioRoute.HEADSET -> R.drawable.ic_route_headset
+                AudioRoute.HEADPHONES -> R.drawable.ic_route_headphones
                 AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
                 else -> R.drawable.ic_route_earpiece
             }
@@ -1014,6 +1048,7 @@ private fun ButtonSpeaker(
                             val (icon, description) = when (it.route) {
                                 AudioRoute.SPEAKER -> Pair(R.drawable.ic_route_speaker, stringResource(com.exolve.voicesdk.R.string.audio_route_speaker))
                                 AudioRoute.HEADSET -> Pair(R.drawable.ic_route_headset, stringResource(com.exolve.voicesdk.R.string.audio_route_headset))
+                                AudioRoute.HEADPHONES -> Pair(R.drawable.ic_route_headphones, stringResource(com.exolve.voicesdk.R.string.audio_route_headphones))
                                 AudioRoute.BLUETOOTH -> Pair(R.drawable.ic_route_bluetooth, "Bluetooth")
                                 else -> Pair(R.drawable.ic_route_earpiece, stringResource(com.exolve.voicesdk.R.string.audio_route_earpiece))
                             }
@@ -1103,4 +1138,20 @@ private fun ButtonMute(
             text = stringResource(id = R.string.button_mute_call)
         )
     }
+}
+
+private fun formatDuration(duration: UInt): String  {
+    val t = duration.toInt()
+    if (t == 0) {
+        return "00:00"
+    }
+
+    val h = t / 3600
+    val m = (t - h * 3600) / 60
+    val s = t % 60
+    if (h == 0) {
+        return String.format("%02d:%02d", m, s)
+    }
+
+    return String.format("%02d:%02d:%02d", h, m, s)
 }

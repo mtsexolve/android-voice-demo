@@ -111,7 +111,7 @@ fun DialerScreen(
         }
 
         IconButton(
-            onClick = { onEvent(DialerContract.Event.OnCallButtonClicked) },
+            onClick = {},
             Modifier
                 .semantics { testTagsAsResourceId = true }
                 .testTag("button_dialer_call_to_number")
@@ -123,7 +123,15 @@ fun DialerScreen(
                 .size(72.dp),
             )
         {
-            Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_button_call), "call")
+            Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_button_call), "call",
+                Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { onEvent(DialerContract.Event.OnCallButtonClicked) },
+                            onLongPress = { onEvent(DialerContract.Event.OnCallButtonLongPressed) },
+                        )
+                    }
+            )
         }
 
         Icon(

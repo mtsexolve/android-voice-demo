@@ -19,6 +19,8 @@ import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.platform.AudioRoute
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import java.lang.Exception
 import javax.annotation.concurrent.Immutable
 
 private const val CALL_VIEW_MODEL = "CallViewModel"
@@ -28,6 +30,8 @@ class CallViewModel(application: Application) :
     BaseViewModel<UiEvent, State, Effect>(application) {
 
     private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
+
+    private var isDurationTimerRunning = true
 
     init {
         Log.d(CALL_VIEW_MODEL, "CallViewModel init")
@@ -41,6 +45,25 @@ class CallViewModel(application: Application) :
         viewModelScope.launch {
             telecomManager.telecomEvents.collect {
                 handleTelecomEvent(it)
+            }
+        }
+
+        viewModelScope.launch {
+            while (isDurationTimerRunning) {
+                delay(1000)
+                if (uiState.value.calls.isNotEmpty()) {
+                    uiState.value.calls.toMutableList().filter { it.isActive() }.also { calls ->
+                        calls.forEach { call ->
+                                call.duration+=1u
+                                if (call.status == CallState.CONNECTED) {
+                                    telecomManager.qualityRating(call.callsId)?.let { callRating ->
+                                        call.qualityRating = callRating
+                                    }
+                                }
+                        }
+                        setState{copy(callsHash = calls.hashCode())}
+                    }
+                }
             }
         }
     }
@@ -72,10 +95,12 @@ class CallViewModel(application: Application) :
         status = call.state,
         isInConference = call.inConference(),
         isMuted = call.isMuted,
+        qualityRating = ((list.find { callFromList -> call.id == callFromList.callsId })?.qualityRating
+            ?: 5.0f),
         indexForUiTest = ((list.find { callFromList -> call.id == callFromList.callsId })
-            ?.let { list.indexOf(it) } ?: list.size)
+            ?.let { list.indexOf(it) } ?: list.size),
+        duration = list.find { callFromList -> call.id == callFromList.callsId }?.duration ?: 0u
     )
-
 
     override fun handleUiEvent(event: UiEvent) {
         when (event) {
@@ -124,7 +149,6 @@ class CallViewModel(application: Application) :
                         this[event.ind2] = tmp
                     }
                     .also { setState { copy(calls = it) } }
-
             }
             is Event.OnItemDroppedOnItem -> {
                 if (event.firstIndex == null || event.secondIndex == null) {
@@ -173,7 +197,7 @@ class CallViewModel(application: Application) :
         if (event is CallEvent) {
             Log.d(CALL_VIEW_MODEL, "CallViewModel: handleTelecomEvent: $event ${event.call.id}")
             updateUiListOfCalls(event.call)
-            if(event is CallEvent.OnCallUserActionRequired){
+            if (event is CallEvent.OnCallUserActionRequired){
                 when (event.pendingEvent) {
                     CallPendingEvent.ACCEPT_CALL -> {
                         cancelPermissionRequestCallback = requestPermissions(
@@ -267,9 +291,19 @@ class CallViewModel(application: Application) :
     }
 
     private fun toggleSpeaker() {
-        setAudioRoute(
-            if (uiState.value.isSpeakerPressed) AudioRoute.EARPIECE else AudioRoute.SPEAKER
-        )
+        var route = AudioRoute.SPEAKER
+        if (uiState.value.isSpeakerPressed) {
+            try {
+                route = uiState.value.audioRoutes.first {
+                    it.route == AudioRoute.EARPIECE
+                    || it.route == AudioRoute.HEADSET
+                    || it.route == AudioRoute.HEADPHONES }.route
+            } catch (e: Exception) {
+                Log.e(CALL_VIEW_MODEL, "CallViewModel: neither earpiece nor wired headset found")
+                return
+            }
+        }
+        setAudioRoute(route)
     }
 
     private fun setAudioRoute(route: AudioRoute) {
@@ -310,5 +344,6 @@ class CallViewModel(application: Application) :
     override fun onCleared() {
         super.onCleared()
         cancelPermissionRequestCallback()
+        isDurationTimerRunning = false
     }
 }

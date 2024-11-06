@@ -46,10 +46,10 @@ class DialerViewModel(application: Application) :
         when(event) {
             is DialerContract.Event.OnRemoveButtonClicked -> { removeDigits(onLongClicked = event.longClicked) }
             is DialerContract.Event.OnCallButtonClicked -> { call() }
+            is DialerContract.Event.OnCallButtonLongPressed -> { restoreCallNumber() }
             is DialerContract.Event.OnDigitButtonClicked -> {updateTextFieldState(event.index)}
         }
     }
-
 
     private fun updateTextFieldState(value: String) {
         setState { copy(dialerText = dialerText + value) }
@@ -69,6 +69,7 @@ class DialerViewModel(application: Application) :
                      dialerToast.show()
                 }
                 else -> {
+                    settingsRepository.setLastCallNumber(uiState.value.dialerText)
                     if(settingsRepository.isDetectCallLocationEnabled()){
                         cancelPermissionRequestCallback = requestPermissions(
                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -86,6 +87,12 @@ class DialerViewModel(application: Application) :
     private fun removeDigits(onLongClicked: Boolean) {
         if (onLongClicked) setState { copy(dialerText = "") }
         else setState { copy(dialerText = dialerText.dropLast(1)) }
+    }
+
+    private fun restoreCallNumber() {
+        settingsRepository.getLastCallNumber().let {
+            setState { copy( dialerText = it ) }
+        }
     }
 
     override suspend fun handleTelecomEvent(event: TelecomEvent) {
