@@ -17,7 +17,7 @@ import com.exolve.voicedemo.core.utils.OnDropData
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
-import com.exolve.voicesdk.platform.AudioRoute
+import com.exolve.voicesdk.AudioRoute
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.lang.Exception

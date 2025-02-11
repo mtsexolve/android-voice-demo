@@ -73,13 +73,13 @@ class CallsListener(
         }
     }
 
-    override fun callDisconnected(p0: Call?) {
-        Log.d(CALLS_LISTENER, "callDisconnected(). Call ID: ${p0?.id}")
+    override fun callDisconnected(call: Call, details: CallDisconnectDetails) {
+        Log.d(CALLS_LISTENER, "callDisconnected(). Call ID: ${call.id}, duration: ${details.duration}, disconnectedByUser: ${details.disconnectedByUser}")
         CoroutineScope(Dispatchers.IO).launch {
-            p0?.let {
+            call.let {
                 telecomManager.setState {
                     copy(
-                        currentCall = if (telecomManagerState.value.currentCall?.id == p0.id) {
+                        currentCall = if (telecomManagerState.value.currentCall?.id == call.id) {
                             Log.d(CALLS_LISTENER, "callDisconnected() current call is terminated")
                             telecomManagerState.value.calls.apply { remove(it) }.firstOrNull()
                         } else telecomManagerState.value.currentCall,

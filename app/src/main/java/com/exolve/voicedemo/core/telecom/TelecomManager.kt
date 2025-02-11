@@ -8,7 +8,7 @@ import com.exolve.voicesdk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import com.exolve.voicedemo.app.activities.*
-import com.exolve.voicesdk.platform.AudioRoute
+import com.exolve.voicesdk.AudioRoute
 
 private const val TELECOM_MANAGER = "TelecomManager"
 

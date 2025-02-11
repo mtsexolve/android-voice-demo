@@ -6,7 +6,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.*
 import com.exolve.voicedemo.core.utils.OnDropData
 import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
-import com.exolve.voicesdk.platform.AudioRoute
+import com.exolve.voicesdk.AudioRoute
 
 @Immutable
 class CallContract {

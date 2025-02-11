@@ -46,7 +46,7 @@ import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.utils.OnDropActionSelectorView
 import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
-import com.exolve.voicesdk.platform.AudioRoute
+import com.exolve.voicesdk.AudioRoute
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
