@@ -433,6 +433,29 @@ private fun checkOverseasOfList(
     else -> 0f
 }
 
+private fun Color.toHexCode(): String {
+    val red = this.red * 255
+    val green = this.green * 255
+    val blue = this.blue * 255
+    return String.format("#%02x%02x%02x", red.toInt(), green.toInt(), blue.toInt())
+}
+
+private fun colorFromQualityRating(
+    qualityRating: Float,
+) = when {
+    qualityRating > 4.2 -> {
+        Color.Green
+    }
+    qualityRating > 2.5 -> {
+        Color.Yellow
+    }
+    qualityRating >= 0.0 -> {
+        Color.Red
+    }
+    else -> Color(0xB00000)
+}
+
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CallLineItem(
@@ -479,22 +502,11 @@ fun CallLineItem(
                     //Spacer(Modifier.weight(1f))
                     Box(
                         modifier = Modifier.size(10.dp)
+                            .semantics { testTagsAsResourceId = true }
+                            .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}_quality_rating_${colorFromQualityRating(item.qualityRating).toHexCode()}")
                             .align(Alignment.CenterVertically)
                             .clip(CircleShape)
-                            .background(
-                                when {
-                                    item.qualityRating > 4.2 -> {
-                                        Color.Green
-                                    }
-                                    item.qualityRating > 2.5 -> {
-                                        Color.Yellow
-                                    }
-                                    item.qualityRating >= 0.0 -> {
-                                        Color.Red
-                                    }
-                                    else -> Color.Transparent
-                                }
-                            )
+                            .background(colorFromQualityRating(item.qualityRating))
                     )
                 }
             }
@@ -985,16 +997,19 @@ private fun ButtonSpeaker(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         var iconId = R.drawable.ic_route_earpiece
+        var buttonTextId = R.string.button_speaker_route_earpiece
         val activeRoute = routes.firstOrNull { it.isActive }
         if (activeRoute != null) {
             Log.d(CALL_SCREEN, "active route ${activeRoute.name}")
-            iconId = when (activeRoute.route) {
-                AudioRoute.SPEAKER -> R.drawable.ic_route_speaker
-                AudioRoute.HEADSET -> R.drawable.ic_route_headset
-                AudioRoute.HEADPHONES -> R.drawable.ic_route_headphones
-                AudioRoute.BLUETOOTH -> R.drawable.ic_route_bluetooth
-                else -> R.drawable.ic_route_earpiece
+            val resIdsPair = when (activeRoute.route) {
+                AudioRoute.SPEAKER -> Pair(R.drawable.ic_route_speaker, R.string.button_speaker_route_speaker)
+                AudioRoute.HEADSET -> Pair(R.drawable.ic_route_headset, R.string.button_speaker_route_headset)
+                AudioRoute.HEADPHONES -> Pair(R.drawable.ic_route_headphones, R.string.button_speaker_route_headphones)
+                AudioRoute.BLUETOOTH -> Pair(R.drawable.ic_route_bluetooth, R.string.button_speaker_route_bluetooth)
+                else -> Pair(R.drawable.ic_route_earpiece, R.string.button_speaker_route_earpiece)
             }
+            iconId = resIdsPair.first
+            buttonTextId = resIdsPair.second
         } else {
             Log.d(CALL_SCREEN, "no active route")
         }
@@ -1030,7 +1045,7 @@ private fun ButtonSpeaker(
                 fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
                 color = colorResource(id = R.color.call_control_button_mts)
             ),
-            text = stringResource(id = R.string.button_speaker)
+            text = stringResource(id = buttonTextId)
         )
         DropdownMenu(expanded = showRouteSelector,
             onDismissRequest = { showRouteSelector = false }

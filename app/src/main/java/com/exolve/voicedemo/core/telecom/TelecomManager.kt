@@ -9,6 +9,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import com.exolve.voicedemo.app.activities.*
 import com.exolve.voicesdk.AudioRoute
+import kotlin.jvm.optionals.getOrNull
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -52,7 +53,11 @@ class TelecomManager(private var context: Application) {
 
     init {
         val env = SettingsRepository(context).getEnvironment()
-        communicator = Communicator.initialize(context, configuration, ApplicationState.BACKGROUND, env)
+        communicator = if(!env.isNullOrEmpty()){
+            Communicator.initialize(context, configuration, ApplicationState.BACKGROUND, env)
+        } else {
+            Communicator.initialize(context, configuration, ApplicationState.BACKGROUND)
+        }
         callClient = communicator.callClient
         Log.d(TELECOM_MANAGER, "init: callClient = $callClient")
         callClient.run {

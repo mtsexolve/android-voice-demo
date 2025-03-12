@@ -19,7 +19,11 @@
     <string name="calls_card_resume_call">Resume</string>
     <string name="button_mute_call">Mute</string>
     <string name="button_dtmf">DTMF</string>
-    <string name="button_speaker">Speaker</string>
+    <string name="button_speaker_route_speaker">Speaker</string>
+    <string name="button_speaker_route_bluetooth">Bluetooth</string>
+    <string name="button_speaker_route_earpiece">Earpiece</string>
+    <string name="button_speaker_route_headset">Headset</string>
+    <string name="button_speaker_route_headphones">Headphones</string>
     <string name="button_new_call_add">New call</string>
     <string name="button_end_call">End call</string>
     <string name="button_transfer_call">Transfer</string>

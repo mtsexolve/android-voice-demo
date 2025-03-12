@@ -42,7 +42,7 @@ class SettingsViewModel(application: Application) :
             sipTraces = telecomManager.isSipTracesEnabled(),
             logLevel = telecomManager.logLevel(),
             useEncryption = telecomManager.isEncryptionEnabled(),
-            environment = "",//telecomManager.getEnvironment()
+            environment = telecomManager.currentEnvironment(),
             needRestart = false
         )
     }

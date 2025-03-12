@@ -2,6 +2,7 @@ package com.exolve.voicedemo.core.utils
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,10 +22,14 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +44,7 @@ data class OnDropData(
     val first: State.CallItemState,
     val second: State.CallItemState)
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback: () -> Unit) {
     Column(
@@ -135,11 +141,15 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 12.dp
                     ),
-                    modifier = Modifier.constrainAs(buttonConference) {
+                    modifier = Modifier
+                        .constrainAs(buttonConference) {
                         top.linkTo(bar, margin = 24.dp)
                         start.linkTo(parent.start, margin = 16.dp)
                         end.linkTo(parent.end, margin = 16.dp)
-                    }
+                        }
+                        .semantics { testTagsAsResourceId = true }
+                        .testTag("button_create_a_conference")
+
                 ) {
                     Column(modifier = Modifier.fillMaxWidth(0.9f)) {
                         Text(
@@ -170,12 +180,15 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 12.dp
                     ),
-                    modifier = Modifier.constrainAs(buttonTransfer) {
+                    modifier = Modifier
+                        .constrainAs(buttonTransfer) {
                         top.linkTo(buttonConference.bottom, margin = 16.dp)
                         start.linkTo(parent.start, margin = 16.dp)
                         end.linkTo(parent.end, margin = 16.dp)
                         bottom.linkTo(parent.bottom, margin = 16.dp)
-                    }
+                        }
+                        .semantics { testTagsAsResourceId = true }
+                        .testTag("button_transfer_call")
                 ) {
                     Column(modifier = Modifier.fillMaxWidth(0.9f)) {
                         Text(
