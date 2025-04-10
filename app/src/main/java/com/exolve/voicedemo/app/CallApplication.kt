@@ -37,13 +37,13 @@ class CallApplication : Application() {
         CoroutineScope(Dispatchers.IO).launch {
             TelecomManager.getInstance().telecomEvents.collect { telecomEvent ->
                 if (telecomEvent is TelecomContract.CallEvent.OnNewCall) {
-                    val isFirstCall = TelecomManager.getInstance().getCalls().size == 1
-                    if (telecomEvent.call.isOutCall ||
-                        isFirstCall && applicationStateInspector.isMainActivityActive()
-                    ) {
-                        Intent(this@CallApplication, CallActivity::class.java).also { intent ->
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            startActivity(intent)
+                    if (applicationStateInspector.isMainActivityActive()) {
+                        val tm = TelecomManager.getInstance()
+                        if (telecomEvent.call.isOutCall || (tm.getCalls().size == 1 && !tm.isNotificationInForegroundEnabled())) {
+                            Intent(this@CallApplication, CallActivity::class.java).also { intent ->
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                startActivity(intent)
+                            }
                         }
                     }
                 }

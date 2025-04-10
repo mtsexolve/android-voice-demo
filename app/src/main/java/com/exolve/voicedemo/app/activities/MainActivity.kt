@@ -1,23 +1,30 @@
 package com.exolve.voicedemo.app.activities
 
 import android.Manifest
+import android.app.NotificationManager
 import android.content.Intent
 import android.database.Cursor
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Surface
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
@@ -110,7 +117,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+        }
         requestPermissions()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestFullscreenIntentPermission()
+        }
         initEventListeners(settingsViewModel, dialerViewModel)
         handleDeepLink(intent)
         setContent {
@@ -143,6 +157,17 @@ class MainActivity : ComponentActivity() {
             permissions += Manifest.permission.POST_NOTIFICATIONS
         }
         requestPermissionLauncher.launch(permissions)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // API >= 34
+    private fun requestFullscreenIntentPermission() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (!nm.canUseFullScreenIntent()) {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                .setData(Uri.parse("package:${packageName}"))
+            )
+        }
     }
 
     private fun initEventListeners(
@@ -188,10 +213,9 @@ fun MainAppScreen(
 ) {
     val navController = rememberNavController()
     Scaffold(
-        modifier = remember { Modifier },
+        modifier = remember { Modifier.safeDrawingPadding() },
         bottomBar = { AppBottomNavigation(navController = navController) },
         topBar = { AppTopBar(accountViewModel as AccountViewModel, remember { Modifier }) }
-
     ) { paddingValues ->
         val dialerRoute = stringResource(id = BottomNavigationDestinations.Dialer.screenRouteStringId)
         val accountRoute = stringResource(id = BottomNavigationDestinations.Account.screenRouteStringId)

@@ -1,6 +1,7 @@
 package com.exolve.voicedemo.features.account
 
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -114,7 +115,6 @@ fun AccountView(
             passwordEditText,
             passwordHeader,
             activateButton,
-            copyTokenButton,
             tokenEditText,
             tokenHeader,
         ) = createRefs()
@@ -134,7 +134,6 @@ fun AccountView(
             text = stringResource(id = R.string.settings_number)
         )
         CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColor) {
-
             OutlinedTextField(
                 value = number,
                 onValueChange = { onEvent(AccountContract.Event.UserTexFieldChanged(it)) },
@@ -157,9 +156,9 @@ fun AccountView(
                 ),
                 shape = RoundedCornerShape(8.dp),
                 maxLines = 1,
-
-                )
+            )
         }
+
         // password
         Text(
             modifier = Modifier.constrainAs(passwordHeader) {
@@ -246,7 +245,10 @@ fun AccountView(
             text = stringResource(id = R.string.settings_token)
         )
         OutlinedTextField(
-            value = token,
+            value = when {
+                token.isNotEmpty() -> token
+                else -> stringResource(id = R.string.default_token)
+            },
             onValueChange = { },
             placeholder = { },
             modifier = Modifier
@@ -257,8 +259,13 @@ fun AccountView(
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }
-                .fillMaxWidth(),
-            maxLines = 1,
+                .fillMaxWidth()
+                .clickable {
+                    if (token.isNotEmpty()) {
+                        onEvent(AccountContract.Event.OnCopyButtonClicked)
+                    }
+                },
+            maxLines = Int.MAX_VALUE,
             enabled = false,
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 focusedBorderColor = colorResource(id = R.color.mts_grey),
@@ -268,36 +275,8 @@ fun AccountView(
                 backgroundColor = colorResource(id = R.color.mts_bg_grey),
             ),
             shape = RoundedCornerShape(8.dp)
-
         )
 
-        Button(
-            onClick = {
-                onEvent(AccountContract.Event.OnCopyButtonClicked)
-            },
-            modifier = Modifier
-                .semantics { testTagsAsResourceId = true }
-                .testTag("button_settings_copy_token_button")
-                .constrainAs(copyTokenButton) {
-                    top.linkTo(tokenEditText.bottom, margin = 8.dp)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                    width = Dimension.fillToConstraints
-                }
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_grey)),
-        ) {
-            Text(
-                text = stringResource(id = R.string.settings_button_copy),
-                fontSize = 17.sp,
-                style = TextStyle(
-                    color = colorResource(id = R.color.white),
-                    fontFamily = FontFamily(Font(R.font.mtscompact_bold)),
-                ),
-                modifier = Modifier.padding(vertical = 14.dp)
-            )
-        }
     }
 }
 

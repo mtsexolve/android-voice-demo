@@ -52,7 +52,9 @@ class DialerViewModel(application: Application) :
     }
 
     private fun updateTextFieldState(value: String) {
-        setState { copy(dialerText = dialerText + value) }
+        if (uiState.value.dialerText.length < 32) {
+            setState { copy(dialerText = dialerText + value) }
+        }
     }
 
     private fun call() {
@@ -70,7 +72,7 @@ class DialerViewModel(application: Application) :
                 }
                 else -> {
                     settingsRepository.setLastCallNumber(uiState.value.dialerText)
-                    if(settingsRepository.isDetectCallLocationEnabled()){
+                    if(settingsRepository.isDetectLocationEnabled()){
                         cancelPermissionRequestCallback = requestPermissions(
                             Manifest.permission.ACCESS_FINE_LOCATION,
                             Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -99,7 +101,7 @@ class DialerViewModel(application: Application) :
         Log.d(DIALER_VIEW_MODEL, "DialerViewModel: telecomEvent: event is $event")
         when (event) {
             is CallEvent.OnNewCall -> setState { copy(hasCurrentCall = true) }
-            is CallEvent.OnCallTerminated -> {
+            is CallEvent.OnCallDisconnected -> {
                 if (telecomManager.getCalls().isEmpty()) {
                     setState { copy(hasCurrentCall = false) }
                 }

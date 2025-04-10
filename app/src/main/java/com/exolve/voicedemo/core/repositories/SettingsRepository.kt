@@ -13,7 +13,7 @@ class SettingsRepository(
     private val PREFERENCES = "EXOLVE_PREFERENCES_FILE_KEY"
     private val ACCOUNT_KEY = "LOCAL_ACCOUNT_GSON_KEY"
     private val BACKGROUND_RUNNING_KEY = "LOCAL_BACKGROUND_RUNNING"
-    private val DETECT_CALLLOCATION_KEY = "LOCAL_DETECT_CALLLOCATION"
+    private val DETECT_LOCATION_KEY = "LOCAL_DETECT_LOCATION"
     private val TELECOM_MANAGER_MODE_KEY = "LOCAL_TELECOM_MANAGER_MODE"
     private val LAST_CALL_NUMBER_KEY = "LAST_CALL_NUMBER"
     private val SIP_TRACES = "SIP_TRACES"
@@ -52,12 +52,12 @@ class SettingsRepository(
 
     fun setDetectCallLocationEnabled(enabled: Boolean) {
         editor
-            .putBoolean(DETECT_CALLLOCATION_KEY, enabled)
+            .putBoolean(DETECT_LOCATION_KEY, enabled)
             .apply()
     }
 
-    fun isDetectCallLocationEnabled(): Boolean {
-        return dataSource.getBoolean(DETECT_CALLLOCATION_KEY, true)
+    fun isDetectLocationEnabled(): Boolean {
+        return dataSource.getBoolean(DETECT_LOCATION_KEY, true)
     }
 
     fun setTelecomManagerMode(mode: TelecomIntegrationMode) {

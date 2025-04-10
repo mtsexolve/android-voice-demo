@@ -9,7 +9,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import com.exolve.voicedemo.app.activities.*
 import com.exolve.voicesdk.AudioRoute
-import kotlin.jvm.optionals.getOrNull
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -36,13 +35,14 @@ class TelecomManager(private var context: Application) {
         .enableNotifications(true)
         .enableRingtone(true)
         .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
-        .enableDetectCallLocation(SettingsRepository(context).isDetectCallLocationEnabled())
+        .enableDetectLocation(SettingsRepository(context).isDetectLocationEnabled())
         .telecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
         .notificationConfiguration(
             NotificationConfiguration().apply {
                 callActivityClass = CallActivity::class.java.canonicalName
                 appActivityClass = MainActivity::class.java.canonicalName
                 setContactNameResolver(_contactNameResolver)
+                notifyInForeground = false
             }
         )
         .build()
@@ -200,12 +200,12 @@ class TelecomManager(private var context: Application) {
         SettingsRepository(context).setBackgroundRunningEnabled(enable)
     }
 
-    fun isDetectCallLocationEnabled(): Boolean {
-        return SettingsRepository(context).isDetectCallLocationEnabled()
+    fun isDetectLocationEnabled(): Boolean {
+        return SettingsRepository(context).isDetectLocationEnabled()
     }
 
-    fun setDetectCallLocationEnabled(enable: Boolean) {
-        communicator.configurationManager.setDetectCallLocationEnabled(enable)
+    fun setDetectLocationEnabled(enable: Boolean) {
+        communicator.configurationManager.setDetectLocationEnabled(enable)
         SettingsRepository(context).setDetectCallLocationEnabled(enable)
     }
 
@@ -276,6 +276,10 @@ class TelecomManager(private var context: Application) {
 
     fun getAudioRoutes(): List<AudioRouteData> {
         return callClient.audioRoutes
+    }
+
+    fun isNotificationInForegroundEnabled(): Boolean {
+        return configuration.notifyInForeground
     }
 
     companion object {

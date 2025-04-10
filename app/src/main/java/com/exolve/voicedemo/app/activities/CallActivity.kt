@@ -10,14 +10,17 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -62,6 +65,10 @@ class CallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+        }
         telecomManager = TelecomManager.getInstance()
         if (telecomManager.getCalls().isEmpty()) {
             finish()
@@ -81,7 +88,7 @@ class CallActivity : ComponentActivity() {
         }
         CoroutineScope(Dispatchers.IO).launch {
             telecomManager.telecomEvents.collect { telecomEvent ->
-                if(telecomEvent is TelecomContract.CallEvent.OnCallTerminated ||
+                if(telecomEvent is TelecomContract.CallEvent.OnCallDisconnected ||
                     telecomEvent is TelecomContract.CallEvent.OnCallError) {
                     if(telecomManager.getCalls().isEmpty()) {
                         delay(1.seconds)
@@ -93,8 +100,10 @@ class CallActivity : ComponentActivity() {
         setContent {
             AndroidVoiceExampleTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colors.background
+                    modifier = Modifier
+                        .safeDrawingPadding()
+                        .fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
                     val controlDestination = stringResource(id = R.string.navigation_ongoing_call_control)

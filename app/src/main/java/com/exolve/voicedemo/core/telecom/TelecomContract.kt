@@ -24,11 +24,11 @@ class TelecomContract {
     }
 
     sealed class CallEvent(open val call: Call) : TelecomEvent {
-        data class OnCallEstablished(
+        data class OnCallConnected(
             override val call: Call,
         ) : CallEvent(call)
 
-        data class OnCallPaused(
+        data class OnCallHold(
             override val call: Call,
         ) : CallEvent(call)
 
@@ -36,11 +36,7 @@ class TelecomContract {
             val isMuted: Boolean,
         )
 
-        data class OnCallResumed(
-            override val call: Call,
-        ) : CallEvent(call)
-
-        data class OnCallTerminated(
+        data class OnCallDisconnected(
             override val call: Call,
         ) : CallEvent(call)
 

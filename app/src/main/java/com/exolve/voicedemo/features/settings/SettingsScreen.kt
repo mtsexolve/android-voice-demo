@@ -289,7 +289,7 @@ fun SettingsView(
                         id = R.color.mts_text_grey
                     )
                 ),
-                text = stringResource(id = R.string.calllocation_detect)
+                text = stringResource(id = R.string.location_detect)
             )
 
             Switch(

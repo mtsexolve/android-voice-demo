@@ -12,13 +12,17 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.*
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.ParagraphIntrinsics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.createFontFamilyResolver
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +30,8 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import kotlinx.coroutines.delay
+import kotlin.math.max
+import kotlin.math.min
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -170,22 +176,48 @@ fun NumberEntryPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TextField(
-            modifier = Modifier
-                .semantics { testTagsAsResourceId = true }
-                .testTag("edit_text_dialer_entered_number"),
-            value = dialerTextField,
-            onValueChange = { },
-            readOnly = true,
-            singleLine = true,
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = colorResource(id = R.color.white),
-                unfocusedBorderColor = colorResource(id = R.color.white),
-                focusedLabelColor = colorResource(id = R.color.white)
-            ),
-            textStyle = TextStyle(fontFamily = FontFamily(Font(R.font.mtswide_medium)), fontSize = 32.sp, textAlign = TextAlign.Center)
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            val maxInputWidth = maxWidth - 40.dp;
+            val calculateIntrinsics = @Composable {
+                ParagraphIntrinsics(
+                    text = dialerTextField,
+                    style = TextStyle(
+                        fontFamily = FontFamily(Font(R.font.mtswide_medium)),
+                        fontSize = 40.sp,
+                        textAlign = TextAlign.Center
+                    ),
+                    density = LocalDensity.current,
+                    fontFamilyResolver = createFontFamilyResolver(LocalContext.current)
+                )
+            }
+            val intrinsics = calculateIntrinsics()
+            val scale = with (LocalDensity.current) {
+                min(1f, max(0.33f,maxInputWidth.toPx() / intrinsics.maxIntrinsicWidth))
+            }
+            TextField(
+                modifier = Modifier
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("edit_text_dialer_entered_number"),
+                value = dialerTextField,
+                onValueChange = { },
+                readOnly = true,
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = colorResource(id = R.color.white),
+                    unfocusedBorderColor = colorResource(id = R.color.white),
+                    focusedLabelColor = colorResource(id = R.color.white)
+                ),
+                textStyle = TextStyle(
+                    fontFamily = FontFamily(Font(R.font.mtswide_medium)),
+                    fontSize = 40.sp * scale,
+                    textAlign = TextAlign.Center
+                )
+            )
+        }
 
-        )
         DialerDigitButtons(
             onEvent = onEvent,
         )

@@ -48,7 +48,7 @@ class CallsListener(
                         this[this.indexOfFirst { otherCall: Call -> otherCall.id == it.id }] = it
                     })
                 }
-                telecomManagerEvent.emit(CallEvent.OnCallEstablished(p0))
+                telecomManagerEvent.emit(CallEvent.OnCallConnected(p0))
             }
         }
     }
@@ -58,17 +58,7 @@ class CallsListener(
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {
                 telecomManager.setState { copy(currentCall = p0) }
-                telecomManagerEvent.emit(CallEvent.OnCallPaused(p0))
-            }
-        }
-    }
-
-    override fun callResumed(p0: Call?) {
-        Log.d(CALLS_LISTENER, "callResumed(). Call ID: ${p0?.id}")
-        CoroutineScope(Dispatchers.IO).launch {
-            p0?.let {
-                telecomManager.setState { copy(currentCall = p0) }
-                telecomManagerEvent.emit(CallEvent.OnCallResumed(p0))
+                telecomManagerEvent.emit(CallEvent.OnCallHold(p0))
             }
         }
     }
@@ -86,7 +76,7 @@ class CallsListener(
                         calls = telecomManagerState.value.calls.apply { remove(it) },
                     )
                 }
-                telecomManagerEvent.emit(CallEvent.OnCallTerminated(it))
+                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(it))
             }
         }
     }
@@ -124,7 +114,7 @@ class CallsListener(
                         calls = telecomManagerState.value.calls.apply { remove(p0) },
                     )
                 }
-                telecomManagerEvent.emit(CallEvent.OnCallTerminated(p0))
+                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(p0))
             }
         }
     }

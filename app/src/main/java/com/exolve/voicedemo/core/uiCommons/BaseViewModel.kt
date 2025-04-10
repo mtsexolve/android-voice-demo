@@ -79,8 +79,7 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
         } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
             onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
             return {}
-        }
-        else {
+        } else {
             return PermissionRequester.requestPermissions(getApplication(), *permissions) { permissionResults ->
                 if (permissionResults.all{it.state == PermissionState.GRANTED}) {
                     onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)

@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
-import androidx.test.core.app.ApplicationProvider.getApplicationContext
 import com.exolve.voicedemo.core.telecom.TelecomEvent
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.utils.SharingProvider
@@ -37,7 +36,7 @@ class SettingsViewModel(application: Application) :
         return SettingsContract.State(
             versionDescription = "",
             voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled(),
-            detectCallLocation = telecomManager.isDetectCallLocationEnabled(),
+            detectCallLocation = telecomManager.isDetectLocationEnabled(),
             telecomManagerMode = telecomManager.telecomManagerIntegrationMode(),
             sipTraces = telecomManager.isSipTracesEnabled(),
             logLevel = telecomManager.logLevel(),
@@ -63,8 +62,8 @@ class SettingsViewModel(application: Application) :
             }
 
             is SettingsContract.Event.OnCallLocationDetectChanged -> {
-                telecomManager.setDetectCallLocationEnabled(event.enabled)
-                setState { copy(detectCallLocation = telecomManager.isDetectCallLocationEnabled()) }
+                telecomManager.setDetectLocationEnabled(event.enabled)
+                setState { copy(detectCallLocation = telecomManager.isDetectLocationEnabled()) }
             }
 
             is SettingsContract.Event.OnTelecomManagerModeChanged -> {
