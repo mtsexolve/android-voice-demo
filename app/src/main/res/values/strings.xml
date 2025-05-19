@@ -61,4 +61,7 @@
     <string name="clear_logs_message">Do you want to remove old log files?</string>
     <string name="clear_logs_confirm">Confirm</string>
     <string name="clear_logs_cancel">Cancel</string>
+    <string name="missed_calls_channel_name">Missed Calls</string>
+    <string name="missed_calls_channel_description">Show notifications about missed calls</string>
+    <string name="missed_call_notification_text">Missed call from %s</string>
 </resources>

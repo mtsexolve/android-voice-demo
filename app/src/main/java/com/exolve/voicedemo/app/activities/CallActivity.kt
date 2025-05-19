@@ -34,6 +34,8 @@ import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
 import com.exolve.voicedemo.features.call.CallContract
 import com.exolve.voicedemo.features.call.CallViewModel
 import com.exolve.voicedemo.features.call.OngoingCallScreen
+import com.exolve.voicedemo.features.dialer.DialerContract
+import com.exolve.voicedemo.features.dialer.DialerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -46,6 +48,8 @@ class CallActivity : ComponentActivity() {
     private lateinit var telecomManager: TelecomManager
 
     private val viewModel: CallViewModel by viewModels()
+
+    private val dialerViewModel: DialerViewModel by viewModels()
 
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -86,6 +90,11 @@ class CallActivity : ComponentActivity() {
                 handleUiEvent(it)
             }
         }
+        lifecycleScope.launch {
+            dialerViewModel.event.collect {
+                handleUiEvent(it)
+            }
+        }
         CoroutineScope(Dispatchers.IO).launch {
             telecomManager.telecomEvents.collect { telecomEvent ->
                 if(telecomEvent is TelecomContract.CallEvent.OnCallDisconnected ||
@@ -114,7 +123,9 @@ class CallActivity : ComponentActivity() {
                         composable(controlDestination) {
                             OngoingCallScreen(
                                 ongoingCallViewModel = viewModel,
-                                onEvent = viewModel::setEvent
+                                dialerViewModel = dialerViewModel,
+                                onEvent = viewModel::setEvent,
+                                onDialerEvent = dialerViewModel::setEvent
                             )
                         }
                     }
@@ -139,12 +150,11 @@ class CallActivity : ComponentActivity() {
     private fun handleUiEvent(event: UiEvent) {
         Log.d(CALL_ACTIVITY, "handleUiEvent: $event")
         when (event) {
-            is CallContract.Event.OnTransferButtonClicked -> {
-                contactsPermissionRequestLauncher.launch(Manifest.permission.READ_CONTACTS)
-            }
-
             is CallContract.Event.OnNewCallButtonClicked -> {
                 finish()
+            }
+            is DialerContract.Event.OnContactsButtonClicked -> {
+                contactsPermissionRequestLauncher.launch(Manifest.permission.READ_CONTACTS)
             }
         }
     }
@@ -187,7 +197,9 @@ class CallActivity : ComponentActivity() {
                 val number: String = cursor.getString(numberColumnIndex)
                 cursor.close()
                 // Show results
-                viewModel.setEvent(CallContract.Event.OnTransferNumberSelected(number))
+                dialerViewModel.setState {
+                    copy(dialerText = number)
+                }
             } else {
                 Log.d(
                     CALL_ACTIVITY,

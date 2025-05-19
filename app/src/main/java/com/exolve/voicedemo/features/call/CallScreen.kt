@@ -1,9 +1,6 @@
 package com.exolve.voicedemo.features.call
 
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -22,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -44,6 +40,8 @@ import com.exolve.voicedemo.features.dialer.NumberEntryPanel
 import com.exolve.voicedemo.features.call.CallContract.State.CallItemState
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.utils.OnDropActionSelectorView
+import com.exolve.voicedemo.features.dialer.DialerScreen
+import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicesdk.AudioRouteData
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.AudioRoute
@@ -55,84 +53,126 @@ private const val CALL_SCREEN = "CallScreen"
 @Composable
 fun OngoingCallScreen(
     ongoingCallViewModel: CallViewModel,
-    onEvent: (event: UiEvent) -> Unit
+    dialerViewModel: DialerViewModel,
+    onEvent: (event: UiEvent) -> Unit,
+    onDialerEvent: (event: UiEvent) -> Unit
 ) {
-    val state =  ongoingCallViewModel.uiState.collectAsState()
-    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-        val (
-            controlPanel,
-            numberEntryPanel,
-            callsInformationPanel,
-        ) = createRefs()
-        AnimatedVisibility(
-            visible = state.value.isDtmfPressed,
-            modifier = Modifier.constrainAs(numberEntryPanel) {
-                bottom.linkTo(controlPanel.top, margin = 24.dp)
-                start.linkTo(parent.start)
-                end.linkTo(parent.end)
-            },
-            enter = slideInVertically { 3000 },
-            exit = slideOutVertically { 3000 }
+    val state = ongoingCallViewModel.uiState.collectAsState()
+
+    if ( state.value.navigationRoute == CallContract.NavigationRoute.CALLS ) {
+        ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+            val (
+                controlPanel,
+                callsInformationPanel,
+                ) = createRefs()
+
+            Box(
+                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.margin_horizontal_big))
+                    .constrainAs(callsInformationPanel) {
+                        top.linkTo(parent.top)
+                        bottom.linkTo(controlPanel.top)
+                        end.linkTo(parent.end)
+                        start.linkTo(parent.start)
+                        height = Dimension.fillToConstraints
+                    }
+            ){
+                CallsInformationPanel(
+                    onEvent = onEvent,
+                    callsList = state.value.calls,
+                    hasConference = state.value.hasConference
+                )
+            }
+
+            ControlPanel(
+                modifier = Modifier
+                    .constrainAs(controlPanel) {
+                        bottom.linkTo(parent.bottom, margin = 28.dp)
+                        start.linkTo(parent.start, margin = 56.dp)
+                        end.linkTo(parent.end, margin = 56.dp) },
+                onEvent = onEvent,
+                isMuted = isMuted(state),
+                currentCallId = state.value.currentCallId,
+                state.value.audioRoutes,
+                state.value.selectedAudioRoute
+            )
+            if (state.value.onDropData != null) {
+                if (!state.value.calls.contains(state.value.onDropData!!.first)
+                    || !state.value.calls.contains(state.value.onDropData!!.second)) {
+                    onEvent(CallContract.Event.OnReleaseDropData)
+                }
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.2f))
+                    .zIndex(1f)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = { onEvent(CallContract.Event.OnReleaseDropData) },)
+                    }
+                ) {
+                    OnDropActionSelectorView(
+                        data = state.value.onDropData!!,
+                        modifier = Modifier.align(Alignment.Center)
+                    ) { onEvent(CallContract.Event.OnReleaseDropData) }
+                }
+            }
+        }
+    } else if ( state.value.navigationRoute == CallContract.NavigationRoute.DTMF ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             DtmfView(state.value.dialerText, onEvent)
+            Spacer(modifier = Modifier.height(48.dp))
+            ButtonDialerHide(onClick = { onEvent(CallContract.Event.OnDtmfButtonClicked) })
         }
-        AnimatedVisibility(
-            visible = !state.value.isDtmfPressed,
-            enter = slideInVertically { -3000 },
-            exit = slideOutVertically { -3000 },
-            modifier = Modifier
-                .padding(horizontal = dimensionResource(id = R.dimen.margin_horizontal_big))
-                .constrainAs(callsInformationPanel) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(controlPanel.top)
-                    end.linkTo(parent.end)
-                    start.linkTo(parent.start)
-                    height = Dimension.fillToConstraints
-                }
-                .fillMaxHeight(),
-
+    } else if ( state.value.navigationRoute == CallContract.NavigationRoute.TRANSFER ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CallsInformationPanel(
-                onEvent = onEvent,
-                callsList = state.value.calls,
-                hasConference = state.value.hasConference
+            DialerScreen(
+                viewModel = dialerViewModel,
+                onEvent  = onDialerEvent,
+                barPaddingValues = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 0.dp),
+                isTransferDialer = true,
+                onCallEvent = onEvent
             )
+            ButtonDialerHide(onClick = { onEvent(CallContract.Event.OnTransferButtonClicked) })
         }
-        ControlPanel(
-            modifier = Modifier
-                .constrainAs(controlPanel) {
-                    bottom.linkTo(parent.bottom, margin = 28.dp)
-                    start.linkTo(parent.start, margin = 56.dp)
-                    end.linkTo(parent.end, margin = 56.dp)
-                },
-            onEvent = onEvent,
-            isMuted = isMuted(state),
-            currentCallId = state.value.currentCallId,
-            state.value.audioRoutes,
-            state.value.selectedAudioRoute
-        )
-        if (state.value.onDropData != null) {
-            if (!state.value.calls.contains(state.value.onDropData!!.first)
-                || !state.value.calls.contains(state.value.onDropData!!.second)) {
-                onEvent(CallContract.Event.OnReleaseDropData)
-            }
-            Box(modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.2f))
-                .zIndex(1f)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = { onEvent(CallContract.Event.OnReleaseDropData) },
-                    )
-                }
-            ) {
-                OnDropActionSelectorView(
-                    data = state.value.onDropData!!,
-                    modifier = Modifier.align(Alignment.Center)
-                ) { onEvent(CallContract.Event.OnReleaseDropData) }
-            }
-        }
+    }
+}
 
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun ButtonDialerHide(
+    onClick: () -> Unit
+) {
+    val contentColor = colorResource(id = R.color.black)
+    val bgColor = colorResource(id = R.color.transparent)
+    OutlinedButton(
+        onClick = { onClick() },
+        Modifier
+            .semantics { testTagsAsResourceId = true }
+            .testTag("button_dialer_hide")
+            .size(72.dp),
+        border = BorderStroke(0.dp,color = Color.White),
+        contentPadding = PaddingValues(0.dp),
+        colors = ButtonColors(
+            containerColor = bgColor,
+            contentColor = contentColor,
+            disabledContainerColor = bgColor,
+            disabledContentColor = contentColor
+        ),
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_hide_keyboard),
+            contentDescription = "Dialer hide",
+            modifier = Modifier
+                .fillMaxSize()
+                .size(72.dp),
+        )
     }
 }
 
@@ -152,13 +192,11 @@ private fun DtmfView(
     dialerTextField: String,
     onEvent: (event: UiEvent) -> Unit
 ) {
-    Column {
-        NumberEntryPanel(
-            dialerTextField,
-            onEvent = onEvent,
-            modifier = Modifier,
+    NumberEntryPanel(
+        dialerTextField,
+        onEvent = onEvent,
+        modifier = Modifier,
         )
-    }
 }
 
 @Composable
@@ -227,6 +265,7 @@ fun CurrentCallTextField(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { testTagsAsResourceId = true }
+
             .testTag("text_view_callscreen_current_number")
             .basicMarquee(),
         fontFamily = FontFamily(Font(R.font.mtswide_bold)),
@@ -394,7 +433,6 @@ fun CallLineList(
                 )
             },
     ) {
-
         itemsIndexed(items = list) { index, item ->
             if (!item.isInConference) {
                 CallLineItem(
@@ -859,7 +897,6 @@ fun ControlPanel(
                 start.linkTo(endCallButton.end, margin = 24.dp)
             },
             onEvent,
-            currentCallId,
         )
     }
 }
@@ -869,7 +906,6 @@ fun ControlPanel(
 private fun ButtonTransfer(
     modifier: Modifier,
     onEvent: (event: UiEvent) -> Unit,
-    currentCallId: String,
 ) {
     Column(
         modifier = modifier,
@@ -877,7 +913,7 @@ private fun ButtonTransfer(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         OutlinedButton(
-            onClick = { onEvent(CallContract.Event.OnTransferButtonClicked(currentCallId)) },
+            onClick = { onEvent(CallContract.Event.OnTransferButtonClicked) },
             Modifier
                 .semantics { testTagsAsResourceId = true }
                 .testTag("button_callscreen_transfer")

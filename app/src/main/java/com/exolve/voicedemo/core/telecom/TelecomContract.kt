@@ -38,6 +38,7 @@ class TelecomContract {
 
         data class OnCallDisconnected(
             override val call: Call,
+            val disconnectDetails: CallDisconnectDetails?
         ) : CallEvent(call)
 
         data class OnCallError(

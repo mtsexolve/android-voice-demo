@@ -10,6 +10,10 @@ import com.exolve.voicesdk.AudioRoute
 
 @Immutable
 class CallContract {
+    enum class NavigationRoute {
+        CALLS, TRANSFER, DTMF
+    }
+
     @Immutable
     data class State(
         val currentCallId: String,
@@ -17,8 +21,7 @@ class CallContract {
         val callsHash: Int = 0,
         val isHoldPressed: Boolean = false,
         val isSpeakerPressed: Boolean = false,
-        val isTransferPressed: Boolean = false,
-        val isDtmfPressed: Boolean = false,
+        val navigationRoute: NavigationRoute = NavigationRoute.CALLS,
         val isAddNewCallPressed: Boolean = false,
         val hasConference: Boolean = false,
         override val dialerText: String = "",
@@ -58,8 +61,8 @@ class CallContract {
         @Immutable data class OnAudioRouteSelect(val route: AudioRoute) : Event()
         @Immutable object OnMuteButtonClicked : Event()
         @Immutable object OnSpeakerButtonClicked : Event()
-        @Immutable data class OnTransferButtonClicked(val currentCallId: String) : Event()
-        @Immutable data class OnTransferNumberSelected(val selectedCall: String) : Event()
+        @Immutable object OnTransferButtonClicked : Event()
+        @Immutable data class OnCallTransferButtonClicked(val selectedCall: String) : Event()
         @Immutable object OnNewCallButtonClicked : Event()
         @Immutable object OnDtmfButtonClicked : Event()
         @Immutable object OnBackToControlScreenClicked : Event()

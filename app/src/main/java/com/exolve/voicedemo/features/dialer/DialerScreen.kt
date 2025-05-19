@@ -1,5 +1,6 @@
 package com.exolve.voicedemo.features.dialer
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -29,21 +31,38 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
+import com.exolve.voicedemo.features.call.CallContract
 import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.min
+
+fun Modifier.conditional(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
+    return if (condition) {
+        then(modifier(Modifier))
+    } else {
+        this
+    }
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DialerScreen(
     viewModel: DialerViewModel,
     onEvent: (event: UiEvent) -> Unit,
-    barPaddingValues: PaddingValues
+    barPaddingValues: PaddingValues,
+    isTransferDialer: Boolean = false,
+    onCallEvent: ((event: UiEvent) -> Unit)? = null
 ) {
+
     val state by viewModel.uiState.collectAsState()
+
+    val buttonsSize = 72.dp
+
     ConstraintLayout(
         Modifier
-            .fillMaxSize()
+            .conditional(!isTransferDialer) {
+                fillMaxSize()
+            }
             .padding(barPaddingValues)) {
         val (
             entryNumberPanel,
@@ -53,7 +72,7 @@ fun DialerScreen(
             backToCallButton,
         ) = createRefs()
 
-        if (state.hasCurrentCall) {
+        if (state.hasCurrentCall && !isTransferDialer) {
             var isVisible by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 delay(500)
@@ -92,7 +111,8 @@ fun DialerScreen(
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
                 bottom.linkTo(callButton.top, margin = 16.dp)
-            }
+            },
+            isTransferDialer = isTransferDialer
         )
 
         OutlinedButton( // Contacts
@@ -105,7 +125,7 @@ fun DialerScreen(
                     bottom.linkTo(parent.bottom, margin = 48.dp)
                     end.linkTo(callButton.start, margin = 24.dp)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
@@ -116,28 +136,60 @@ fun DialerScreen(
             )
         }
 
-        IconButton(
-            onClick = {},
-            Modifier
-                .semantics { testTagsAsResourceId = true }
-                .testTag("button_dialer_call_to_number")
-                .constrainAs(callButton) {
-                    bottom.linkTo(parent.bottom, margin = 48.dp)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                }
-                .size(72.dp),
-            )
-        {
-            Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_button_call), "call",
+        if (isTransferDialer) {
+            OutlinedButton(
+                onClick = {},
                 Modifier
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { onEvent(DialerContract.Event.OnCallButtonClicked) },
-                            onLongPress = { onEvent(DialerContract.Event.OnCallButtonLongPressed) },
-                        )
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("button_dialer_transfer_to_number")
+                    .constrainAs(callButton) {
+                        bottom.linkTo(parent.bottom, margin = 48.dp)
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
                     }
+                    .size(buttonsSize),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(colorResource(id = R.color.call_card_button_accept_mts_green)),
+                border = BorderStroke(1.dp, colorResource(id = R.color.call_card_button_accept_mts_green)),
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_dialer_transfer),
+                    tint = Color.White,
+                    contentDescription = "Transfer",
+                    modifier = Modifier
+                        .size(width = 26.dp, height = 28.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { if (onCallEvent != null) onCallEvent(CallContract.Event.OnCallTransferButtonClicked(state.dialerText)) },
+                                onLongPress = { onEvent(DialerContract.Event.OnCallButtonLongPressed) },
+                            ) },
+                )
+            }
+
+        } else {
+            IconButton(
+                onClick = {},
+                Modifier
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("button_dialer_call_to_number")
+                    .constrainAs(callButton) {
+                        bottom.linkTo(parent.bottom, margin = 48.dp)
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
+                    }
+                    .size(buttonsSize),
             )
+            {
+                Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_button_call), "call",
+                    Modifier
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { onEvent(DialerContract.Event.OnCallButtonClicked) },
+                                onLongPress = { onEvent(DialerContract.Event.OnCallButtonLongPressed) },
+                            )
+                        }
+                )
+            }
         }
 
         Icon(
@@ -169,7 +221,8 @@ fun DialerScreen(
 fun NumberEntryPanel(
     dialerTextField: String,
     onEvent: (event: UiEvent) -> Unit,
-    modifier: Modifier
+    modifier: Modifier,
+    isTransferDialer: Boolean = false
 ) {
     Column(
         modifier,
@@ -220,6 +273,7 @@ fun NumberEntryPanel(
 
         DialerDigitButtons(
             onEvent = onEvent,
+            isTransferDialer = isTransferDialer
         )
     }
 }
@@ -227,8 +281,12 @@ fun NumberEntryPanel(
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DialerDigitButtons(
-    onEvent: (event: DialerContract.Event) -> Unit
+    onEvent: (event: DialerContract.Event) -> Unit,
+    isTransferDialer: Boolean = false
 ) {
+    val buttonsSize = 72.dp
+    val buttonsTextSize = 32.sp
+
     val buttonLabels = remember { mutableStateListOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#") }
     ConstraintLayout(
         modifier = Modifier,
@@ -248,14 +306,14 @@ fun DialerDigitButtons(
                     start.linkTo(parent.start, margin = screenEdgePadding)
                     top.linkTo(parent.top)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
                 colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
                 border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[1],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -270,14 +328,14 @@ fun DialerDigitButtons(
                     start.linkTo(one.end, margin = horizontalPadding)
                     top.linkTo(parent.top)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[2],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -293,7 +351,7 @@ fun DialerDigitButtons(
                     top.linkTo(parent.top)
                     end.linkTo(parent.end, margin = screenEdgePadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
 
@@ -301,7 +359,7 @@ fun DialerDigitButtons(
             Text(
                 text = buttonLabels[3],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -316,14 +374,14 @@ fun DialerDigitButtons(
                     start.linkTo(parent.start, margin = screenEdgePadding)
                     top.linkTo(one.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[4],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -338,14 +396,14 @@ fun DialerDigitButtons(
                     start.linkTo(four.end, margin = horizontalPadding)
                     top.linkTo(two.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[5],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -361,14 +419,14 @@ fun DialerDigitButtons(
                     top.linkTo(three.bottom, margin = verticalPadding)
                     end.linkTo(parent.end, margin = screenEdgePadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[6],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -383,7 +441,7 @@ fun DialerDigitButtons(
                     start.linkTo(parent.start, margin = screenEdgePadding)
                     top.linkTo(four.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
 
@@ -391,7 +449,7 @@ fun DialerDigitButtons(
             Text(
                 text = buttonLabels[7],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -406,14 +464,14 @@ fun DialerDigitButtons(
                     start.linkTo(seven.end, margin = horizontalPadding)
                     top.linkTo(five.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[8],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -429,14 +487,14 @@ fun DialerDigitButtons(
                     top.linkTo(six.bottom, margin = verticalPadding)
                     end.linkTo(parent.end, margin = screenEdgePadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[9],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -451,14 +509,14 @@ fun DialerDigitButtons(
                     start.linkTo(parent.start, margin = screenEdgePadding)
                     top.linkTo(seven.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[10],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -473,14 +531,14 @@ fun DialerDigitButtons(
                     start.linkTo(star.end, margin = horizontalPadding)
                     top.linkTo(eight.bottom, margin = verticalPadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[0],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }
@@ -496,14 +554,14 @@ fun DialerDigitButtons(
                     top.linkTo(nine.bottom, margin = verticalPadding)
                     end.linkTo(parent.end, margin = screenEdgePadding)
                 }
-                .size(72.dp),
+                .size(buttonsSize),
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_bg_grey)),
             border = BorderStroke(0.dp, colorResource(id = R.color.mts_bg_grey))
         ) {
             Text(
                 text = buttonLabels[11],
                 color = colorResource(id = R.color.black),
-                fontSize = 32.sp,
+                fontSize = buttonsTextSize,
                 fontFamily = FontFamily(Font(R.font.mtswide_medium)),
             )
         }

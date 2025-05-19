@@ -160,6 +160,7 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                                 fontFamily = FontFamily(Font(R.font.mtscompact_medium)),
                             ),
                             modifier = Modifier.align(Alignment.CenterHorizontally)
+
                         )
                         Text(
                             stringResource(id = R.string.calls_action_conference_hint),

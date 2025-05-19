@@ -1,14 +1,26 @@
 package com.exolve.voicedemo.core.telecom
 
 import android.app.Application
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Log
+import com.exolve.voicedemo.R
+import com.exolve.voicedemo.app.activities.CallActivity
+import com.exolve.voicedemo.app.activities.MainActivity
 import com.exolve.voicedemo.core.models.Account
 import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicesdk.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
-import com.exolve.voicedemo.app.activities.*
-import com.exolve.voicesdk.AudioRoute
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.*
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -19,13 +31,17 @@ class TelecomManager(private var context: Application) {
     private val _telecomEvents = MutableSharedFlow<TelecomEvent>(replay = 0, extraBufferCapacity = 10)
     val telecomEvents: SharedFlow<TelecomEvent> = _telecomEvents.asSharedFlow()
 
+    private val missedCallsChannelId = "missed_calls_channel"
+
+    private var callsStartTimeMap: MutableMap<String, Long> = Collections.synchronizedMap(mutableMapOf())
+
     private val _contactNameResolver = ContactNameResolver { phoneNumber, resultHandler ->
-            CoroutineScope(Dispatchers.Main).launch {
-                if (phoneNumber == "84997090111") {
-                    resultHandler!!.accept("Telecom company")
-                }
+        CoroutineScope(Dispatchers.Main).launch {
+            if (phoneNumber == "84997090111") {
+                resultHandler!!.accept("Telecom company")
             }
         }
+    }
 
     private val configuration: Configuration = Configuration
         .builder(context)
@@ -53,28 +69,93 @@ class TelecomManager(private var context: Application) {
 
     init {
         val env = SettingsRepository(context).getEnvironment()
-        communicator = if(!env.isNullOrEmpty()){
+        communicator = if (!env.isNullOrEmpty()) {
             Communicator.initialize(context, configuration, ApplicationState.BACKGROUND, env)
         } else {
             Communicator.initialize(context, configuration, ApplicationState.BACKGROUND)
         }
+
+        createNotificationChannel()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            telecomEvents.collect { telecomEvent ->
+                if (telecomEvent is TelecomContract.CallEvent.OnCallDisconnected) {
+                    val callId = telecomEvent.call.id
+                    if (callsStartTimeMap.contains(callId)) {
+                        callsStartTimeMap.remove(callId)
+                    }
+                    val isMissed = !telecomEvent.call.isOutCall
+                            && telecomEvent.disconnectDetails?.duration == 0
+                            && telecomEvent.disconnectDetails.disconnectReason == DisconnectReason.ENDED_BY_PEER
+                    val isSystemManaged =
+                        SettingsRepository(context).getTelecomManagerMode() == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE
+                    if (isMissed && !isSystemManaged) {
+                        // In SYSTEM_MANAGED_SERVICE mode a notification will be shown by the Phone app
+                        showMissedCallNotification(telecomEvent.call.formattedNumber)
+                    }
+                } else if (telecomEvent is TelecomContract.CallEvent.OnCallConnected) {
+                    val callId = telecomEvent.call.id
+                    if (!callsStartTimeMap.contains(callId)) {
+                        callsStartTimeMap[telecomEvent.call.id] = System.currentTimeMillis()
+                    }
+                }
+            }
+        }
+
         callClient = communicator.callClient
         Log.d(TELECOM_MANAGER, "init: callClient = $callClient")
         callClient.run {
-            setCallsListener(CallsListener(
-                this@TelecomManager,
-                telecomManagerEvent = _telecomEvents,
-                telecomManagerState = telecomManagerState,
-                context = context
-            ), context.mainLooper)
-            setRegistrationListener(RegistrationListener(this@TelecomManager,context), context.mainLooper)
+            setCallsListener(
+                CallsListener(
+                    this@TelecomManager,
+                    telecomManagerEvent = _telecomEvents,
+                    telecomManagerState = telecomManagerState,
+                    context = context
+                ), context.mainLooper
+            )
+            setRegistrationListener(RegistrationListener(this@TelecomManager, context), context.mainLooper)
             setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
         }
     }
 
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            missedCallsChannelId,
+            context.getString(R.string.missed_calls_channel_name),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = context.getString(R.string.missed_calls_channel_description)
+        }
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
+    }
+
+
+    private fun showMissedCallNotification(number: String) {
+        val notification = Notification.Builder(context, missedCallsChannelId)
+            .setSmallIcon(android.R.drawable.sym_call_missed)
+            .setContentText(context.getString(R.string.missed_call_notification_text, number))
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setCategory(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Notification.CATEGORY_MISSED_CALL else Notification.CATEGORY_CALL)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    },
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .setAutoCancel(true)
+            .build()
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(1, notification)
+    }
 
     fun getVersionDescription(): String {
-        val versionInfo : VersionInfo = communicator.versionInfo
+        val versionInfo: VersionInfo = communicator.versionInfo
         return "SDK ver.${versionInfo.buildVersion} env: ${versionInfo.environment.ifEmpty { "default" }}"
     }
 
@@ -86,7 +167,7 @@ class TelecomManager(private var context: Application) {
         Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel?.number}")
         if (callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
-                accountModel?.let {  SettingsRepository(context).saveAccountDetails(accountModel)}
+                accountModel?.let { SettingsRepository(context).saveAccountDetails(accountModel) }
                 communicator.run {
                     callClient.register(accountModel?.number ?: " ", accountModel?.password ?: " ")
                 }
@@ -106,10 +187,19 @@ class TelecomManager(private var context: Application) {
     fun getCalls(): List<Call> {
         return telecomManagerState.value.calls
     }
+
     fun call(number: String) {
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
         Log.d(TELECOM_MANAGER, "call: number = $number")
         callClient.placeCall(number)
+    }
+
+    fun callDuration(callId: String): UInt? {
+        if (callsStartTimeMap.contains(callId)) {
+            return ((System.currentTimeMillis() - callsStartTimeMap[callId]!!) / 1000).toUInt()
+        } else {
+            return null
+        }
     }
 
     fun acceptCall(callId: String) {
@@ -154,8 +244,10 @@ class TelecomManager(private var context: Application) {
     fun startConference(firstCallId: String, secondCallId: String) {
         val firstCall = telecomManagerState.value.calls.find { it.id == firstCallId }
         val secondCall = telecomManagerState.value.calls.find { it.id == secondCallId }
-        Log.d(TELECOM_MANAGER, "startConference: firstCall = ${firstCall?.number}, secondCall = ${secondCall?.number}" +
-                "\n firstCallId = $firstCallId, secondCallId = $secondCallId")
+        Log.d(
+            TELECOM_MANAGER, "startConference: firstCall = ${firstCall?.number}, secondCall = ${secondCall?.number}" +
+                    "\n firstCallId = $firstCallId, secondCallId = $secondCallId"
+        )
         secondCall?.let { call: Call -> firstCall?.createConference(call.id) }
     }
 
@@ -263,7 +355,7 @@ class TelecomManager(private var context: Application) {
     }
 
     suspend fun setState(reduce: TelecomContract.State.() -> TelecomContract.State) {
-        withContext(Dispatchers.Main){
+        withContext(Dispatchers.Main) {
             _telecomManagerState.emit(telecomManagerState.value.reduce())
         }
     }
@@ -293,6 +385,7 @@ class TelecomManager(private var context: Application) {
                 }
             }
         }
+
         fun getInstance(): TelecomManager {
             return INSTANCE!!
         }

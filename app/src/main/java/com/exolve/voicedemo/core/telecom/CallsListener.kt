@@ -64,7 +64,7 @@ class CallsListener(
     }
 
     override fun callDisconnected(call: Call, details: CallDisconnectDetails) {
-        Log.d(CALLS_LISTENER, "callDisconnected(). Call ID: ${call.id}, duration: ${details.duration}, disconnectedByUser: ${details.disconnectedByUser}")
+        Log.d(CALLS_LISTENER, "callDisconnected(). Call ID: ${call.id}, duration: ${details.duration}, reason: ${details.disconnectReason}")
         CoroutineScope(Dispatchers.IO).launch {
             call.let {
                 telecomManager.setState {
@@ -76,7 +76,7 @@ class CallsListener(
                         calls = telecomManagerState.value.calls.apply { remove(it) },
                     )
                 }
-                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(it))
+                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(it, details))
             }
         }
     }
@@ -93,28 +93,28 @@ class CallsListener(
         }
     }
 
-    override fun callError(p0: Call?, p1: CallError?, p2: String?) {
+    override fun callError(call: Call?, error: CallError?, errorMessage: String?) {
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d(CALLS_LISTENER, "callError(). Call: ${p0?.id}, error: ${p1?.toString()}, errorDescription: $p2")
-            if (p0 != null && p1 != null && p2 != null) {
-                telecomManagerEvent.emit(CallEvent.OnCallError(p0, p1, p2))
+            Log.d(CALLS_LISTENER, "callError(). Call: ${call?.id}, error: ${error?.toString()}, errorDescription: $errorMessage")
+            if (call != null && error != null && errorMessage != null) {
+                telecomManagerEvent.emit(CallEvent.OnCallError(call, error, errorMessage))
                 CoroutineScope(Dispatchers.Main).launch {
                     Toast.makeText(
                         context,
-                        "Call error: $p2",
+                        "Call error: $errorMessage",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
                 telecomManager.setState {
                     copy(
-                        currentCall = if (telecomManagerState.value.currentCall?.id == p0.id) {
+                        currentCall = if (telecomManagerState.value.currentCall?.id == call.id) {
                             Log.d(CALLS_LISTENER, "callError() current call is terminated")
-                            telecomManagerState.value.calls.apply { remove(p0) }.firstOrNull()
+                            telecomManagerState.value.calls.apply { remove(call) }.firstOrNull()
                         } else telecomManagerState.value.currentCall,
-                        calls = telecomManagerState.value.calls.apply { remove(p0) },
+                        calls = telecomManagerState.value.calls.apply { remove(call) },
                     )
                 }
-                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(p0))
+                telecomManagerEvent.emit(CallEvent.OnCallDisconnected(call, null))
             }
         }
     }

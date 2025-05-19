@@ -54,7 +54,7 @@ class CallViewModel(application: Application) :
                 if (uiState.value.calls.isNotEmpty()) {
                     uiState.value.calls.toMutableList().filter { it.isActive() }.also { calls ->
                         calls.forEach { call ->
-                                call.duration+=1u
+                                call.duration = telecomManager.callDuration(callId = call.callsId) ?: 0u
                                 if (call.status == CallState.CONNECTED) {
                                     telecomManager.qualityRating(call.callsId)?.let { callRating ->
                                         call.qualityRating = callRating
@@ -99,7 +99,7 @@ class CallViewModel(application: Application) :
             ?: 5.0f),
         indexForUiTest = ((list.find { callFromList -> call.id == callFromList.callsId })
             ?.let { list.indexOf(it) } ?: list.size),
-        duration = list.find { callFromList -> call.id == callFromList.callsId }?.duration ?: 0u
+        duration = telecomManager.callDuration(callId = call.id) ?: 0u
     )
 
     override fun handleUiEvent(event: UiEvent) {
@@ -128,7 +128,8 @@ class CallViewModel(application: Application) :
             }
             is Event.OnMuteButtonClicked -> { muteCall() }
             is Event.OnDtmfButtonClicked -> { handleDtmf() }
-            is Event.OnTransferNumberSelected -> { transferCall(event.selectedCall) }
+            is Event.OnTransferButtonClicked -> { handleTransfer() }
+            is Event.OnCallTransferButtonClicked -> { handleCallTransfer(event.selectedCall) }
             is Event.OnBackToControlScreenClicked -> { setState { copy(isAddNewCallPressed = false) } }
             is Event.OnNewCallButtonClicked -> { setState { copy(isAddNewCallPressed = true) } }
             is Event.OnAcceptCallButtonClicked -> {
@@ -259,16 +260,34 @@ class CallViewModel(application: Application) :
         setState { copy(dialerText = dialerText + value) }
     }
 
-    private fun transferCall(selectedCalNumber: String) {
+    private fun handleDtmf() {
+        val newRoute = when (uiState.value.navigationRoute) {
+            NavigationRoute.CALLS -> NavigationRoute.DTMF
+            NavigationRoute.DTMF -> NavigationRoute.CALLS
+            else -> null
+        }
+        if (newRoute != null) {
+            setState { copy(navigationRoute = newRoute) }
+        }
+    }
+
+    private fun handleTransfer() {
+        val newRoute = when (uiState.value.navigationRoute) {
+            NavigationRoute.CALLS -> NavigationRoute.TRANSFER
+            NavigationRoute.TRANSFER -> NavigationRoute.CALLS
+            else -> null
+        }
+        if (newRoute != null) {
+            setState { copy(navigationRoute = newRoute) }
+        }
+    }
+
+    private fun handleCallTransfer(selectedCalNumber: String) {
         Log.d(CALL_VIEW_MODEL, "CallViewModel: transfer call: selectedNumber = $selectedCalNumber")
         telecomManager.transferToNumber(
             uiState.value.currentCallId, selectedCalNumber.replace("[^0-9]".toRegex(), "")
         )
-        setState { copy(isTransferPressed = !isTransferPressed) }
-    }
-
-    private fun handleDtmf() {
-        setState { copy(isDtmfPressed = !isDtmfPressed) }
+        setState { copy(navigationRoute = NavigationRoute.CALLS) }
     }
 
     private fun muteCall() {
