@@ -1,5 +1,6 @@
 package com.exolve.voicedemo.features.call
 
+import android.text.TextUtils
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -90,7 +91,9 @@ fun OngoingCallScreen(
                         start.linkTo(parent.start, margin = 56.dp)
                         end.linkTo(parent.end, margin = 56.dp) },
                 onEvent = onEvent,
+                isActive = isActive(state),
                 isMuted = isMuted(state),
+                isHeld = isHeld(state),
                 currentCallId = state.value.currentCallId,
                 state.value.audioRoutes,
                 state.value.selectedAudioRoute
@@ -176,6 +179,18 @@ private fun ButtonDialerHide(
     }
 }
 
+fun isActive(state: State<CallContract.State>): Boolean {
+    if (!state.value.hasConference) {
+        val callId = state.value.currentCallId
+        val call = state.value.calls.find { it.callsId == callId }
+        return call?.let { call.isActive()}?: false
+    }
+
+    val conferenceCalls = state.value.calls.filter { it.isInConference }
+    return conferenceCalls.fold(false) { ac, call -> ac || call.isActive() }
+}
+
+
 fun isMuted(state: State<CallContract.State>): Boolean {
     if (!state.value.hasConference) {
         val callId = state.value.currentCallId
@@ -185,6 +200,17 @@ fun isMuted(state: State<CallContract.State>): Boolean {
 
     val conferenceCalls = state.value.calls.filter { it.isInConference }
     return conferenceCalls.fold(false) { mu, call -> mu || call.isMuted }
+}
+
+fun isHeld(state: State<CallContract.State>): Boolean {
+    if (!state.value.hasConference) {
+        val callId = state.value.currentCallId
+        val call = state.value.calls.find { it.callsId == callId }
+        return call?.let { call.status == CallState.ON_HOLD }?: false
+    }
+
+    val conferenceCalls = state.value.calls.filter { it.isInConference }
+    return conferenceCalls.fold(false) { ho, call -> ho || call.status == CallState.ON_HOLD }
 }
 
 @Composable
@@ -494,7 +520,7 @@ private fun colorFromQualityRating(
 }
 
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun CallLineItem(
     modifier: Modifier,
@@ -545,6 +571,22 @@ fun CallLineItem(
                             .align(Alignment.CenterVertically)
                             .clip(CircleShape)
                             .background(colorFromQualityRating(item.qualityRating))
+                    )
+                }
+            }
+            if (!TextUtils.isEmpty(item.extraContext)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        item.extraContext,
+                        modifier = Modifier
+                            .semantics { testTagsAsResourceId = true }
+                            .testTag("text_view_callscreen_list_item_context_${item.indexForUiTest}")
+                            .padding(vertical = 4.dp)
+                            .weight(1f)
+                            .basicMarquee(),
+                        fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                        fontSize = 12.sp,
+                        color = colorResource(id = R.color.mts_text_grey)
                     )
                 }
             }
@@ -828,7 +870,9 @@ private fun ButtonAddToConference(
 fun ControlPanel(
     modifier: Modifier,
     onEvent: (event: UiEvent) -> Unit,
+    isActive: Boolean,
     isMuted: Boolean,
+    isHeld: Boolean,
     currentCallId: String,
     routes: List<AudioRouteData>,
     selectedRoute: AudioRoute
@@ -846,6 +890,7 @@ fun ControlPanel(
             muteButton,
             addCallButton,
             transferButton,
+            holdButton
         ) = createRefs()
         // Mute
         ButtonMute(
@@ -882,21 +927,32 @@ fun ControlPanel(
             },
             onEvent,
         )
-        // Terminate
-        ButtonTerminate(
-            Modifier.constrainAs(endCallButton) {
-                top.linkTo(dtmfButton.bottom, margin = 16.dp)
-                start.linkTo(addCallButton.end, margin = 24.dp)
-            },
-            onEvent
-        )
         // Transfer
         ButtonTransfer(
             Modifier.constrainAs(transferButton) {
-                top.linkTo(speakerButton.bottom, margin = 16.dp)
-                start.linkTo(endCallButton.end, margin = 24.dp)
+                top.linkTo(dtmfButton.bottom, margin = 16.dp)
+                start.linkTo(addCallButton.end, margin = 24.dp)
             },
             onEvent,
+        )
+        // Hold
+        if (isActive) {
+            ButtonHold(
+                Modifier.constrainAs(holdButton) {
+                    top.linkTo(speakerButton.bottom, margin = 16.dp)
+                    start.linkTo(transferButton.end, margin = 24.dp)
+                },
+                onEvent,
+                isHeld = isHeld,
+            )
+        }
+        // Terminate
+        ButtonTerminate(
+            Modifier.constrainAs(endCallButton) {
+                top.linkTo(transferButton.bottom, margin = 16.dp)
+                start.linkTo(addCallButton.end, margin = 24.dp)
+            },
+            onEvent
         )
     }
 }
@@ -1191,15 +1247,58 @@ private fun ButtonMute(
     }
 }
 
-private fun formatDuration(duration: UInt): String  {
-    val t = duration.toInt()
-    if (t == 0) {
+@Composable
+@OptIn(ExperimentalComposeUiApi::class)
+private fun ButtonHold(
+    modifier: Modifier,
+    onEvent: (event: UiEvent) -> Unit,
+    isHeld: Boolean
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        OutlinedButton(
+            onClick = { onEvent(CallContract.Event.OnHoldActiveCallButtonClicked(hold = !isHeld)) },
+            Modifier
+                .semantics { testTagsAsResourceId = true }
+                .testTag("button_callscreen_hold")
+                .size(72.dp),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(colorResource(id = R.color.mts_bg_grey)),
+            border = BorderStroke(1.dp, colorResource(id = R.color.mts_bg_grey)),
+        ) {
+            Icon(
+                painter = painterResource(id =
+                if (isHeld)
+                    R.drawable.ic_call
+                else
+                    R.drawable.ic_hold_call_basic),
+                contentDescription = "Hold",
+                modifier = Modifier.size(width = 28.dp, height = 36.dp),
+                tint = colorResource(id =
+                if (isHeld)
+                    R.color.call_card_button_accept_mts_green
+                else
+                    R.color.black)
+            )
+        }
+        Text(
+            style = TextStyle(fontSize = 12.sp, fontFamily = FontFamily(Font(R.font.mtscompact_regular)), color = colorResource(id = R.color.call_control_button_mts)),
+            text = stringResource(id =
+            if (isHeld)
+                R.string.button_resume_call
+            else
+                R.string.button_hold_call)
+        )
+    }
+}
+
+private fun formatDuration(duration: Int): String  {
+    if (duration == 0) {
         return "00:00"
     }
 
-    val h = t / 3600
-    val m = (t - h * 3600) / 60
-    val s = t % 60
+    val h = duration / 3600
+    val m = (duration - h * 3600) / 60
+    val s = duration % 60
     if (h == 0) {
         return String.format("%02d:%02d", m, s)
     }

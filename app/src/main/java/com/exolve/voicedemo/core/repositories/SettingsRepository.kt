@@ -24,13 +24,13 @@ class SettingsRepository(
     private val dataSource = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     private val editor = dataSource.edit()
 
-    fun fetchAccountDetails(): Account {
+    fun fetchAccountDetails(): Account? {
         val jsonString =
             dataSource.getString(ACCOUNT_KEY, null)
         return if (jsonString != null) {
             Gson().fromJson(jsonString, Account::class.java)
         } else {
-            Account(null, null)
+            null
         }
     }
 

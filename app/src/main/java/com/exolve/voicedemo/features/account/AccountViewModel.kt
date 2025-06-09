@@ -56,11 +56,11 @@ class AccountViewModel(application: Application) :
             }
             launch(Dispatchers.IO) {
                 Log.d(ACCOUNT_VIEWMODEL, "launch getAccountDetail")
-                accountRepository.fetchAccountDetails().let {
+                accountRepository.fetchAccountDetails()?.let {
                     setState {
                         copy(
-                            number = it.number ?: "",
-                            password = it.password ?: "",
+                            number = it.number,
+                            password = it.password,
                             registrationState = telecomManager.getRegistrationState()
                         )
                     }

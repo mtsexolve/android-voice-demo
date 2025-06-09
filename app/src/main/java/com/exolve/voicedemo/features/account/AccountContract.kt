@@ -14,7 +14,7 @@ class AccountContract {
         val number: String,
         val password: String,
         val token: String,
-        val registrationState: RegistrationState,
+        val registrationState: RegistrationState = RegistrationState.NOT_REGISTERED,
     ) : UiState
 
     // Events that user performs

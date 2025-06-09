@@ -18,6 +18,8 @@
     <string name="calls_card_accet_call">Accept</string>
     <string name="calls_card_resume_call">Resume</string>
     <string name="button_mute_call">Mute</string>
+    <string name="button_hold_call">Hold</string>
+    <string name="button_resume_call">Resume</string>
     <string name="button_dtmf">DTMF</string>
     <string name="button_speaker_route_speaker">Speaker</string>
     <string name="button_speaker_route_bluetooth">Bluetooth</string>
@@ -51,6 +53,7 @@
     <string name="log_level">Log level</string>
     <string name="use_encryption">Use encryption</string>
     <string name="environment">Environment</string>
+    <string name="call_context">Call Context</string>
     <string name="restart_app">Restart application</string>
     <string name="calls_action_conference">Combine calls"</string>
     <string name="calls_action_conference_hint">"Create a conference"</string>

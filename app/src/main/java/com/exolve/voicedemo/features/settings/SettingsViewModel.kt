@@ -38,6 +38,7 @@ class SettingsViewModel(application: Application) :
             voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled(),
             detectCallLocation = telecomManager.isDetectLocationEnabled(),
             telecomManagerMode = telecomManager.telecomManagerIntegrationMode(),
+            callContext = "",
             sipTraces = telecomManager.isSipTracesEnabled(),
             logLevel = telecomManager.logLevel(),
             useEncryption = telecomManager.isEncryptionEnabled(),
@@ -100,6 +101,13 @@ class SettingsViewModel(application: Application) :
                 setState { copy(
                     environment = event.environment,
                     needRestart = true
+                )}
+            }
+
+            is SettingsContract.Event.OnCallContextChanged -> {
+                telecomManager.setCallContext(event.callContext)
+                setState { copy(
+                    callContext = event.callContext
                 )}
             }
 

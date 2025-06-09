@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.text.TextUtils
 import android.util.Log
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.app.activities.CallActivity
@@ -17,6 +18,7 @@ import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicesdk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,18 +32,21 @@ class TelecomManager(private var context: Application) {
     val telecomManagerState = _telecomManagerState.asStateFlow()
     private val _telecomEvents = MutableSharedFlow<TelecomEvent>(replay = 0, extraBufferCapacity = 10)
     val telecomEvents: SharedFlow<TelecomEvent> = _telecomEvents.asSharedFlow()
-
     private val missedCallsChannelId = "missed_calls_channel"
+    private var _callContext: String = ""
 
-    private var callsStartTimeMap: MutableMap<String, Long> = Collections.synchronizedMap(mutableMapOf())
-
-    private val _contactNameResolver = ContactNameResolver { phoneNumber, resultHandler ->
-        CoroutineScope(Dispatchers.Main).launch {
-            if (phoneNumber == "84997090111") {
-                resultHandler!!.accept("Telecom company")
+    private val _contactNameResolver = ContactNameResolverExt { phoneNumber, extraContext, resultHandler ->
+            Log.d(TELECOM_MANAGER, "Contact resolver lookup: phone: $phoneNumber, context: $extraContext")
+            CoroutineScope(Dispatchers.Main).launch {
+                if (!TextUtils.isEmpty(extraContext)) {
+                    // to emulate delay for contact lookup via API
+                    delay(150)
+                    resultHandler!!.accept("Call with context: $extraContext")
+                } else if (phoneNumber == "74997090111") {
+                    resultHandler!!.accept("Telecom company")
+                }
             }
         }
-    }
 
     private val configuration: Configuration = Configuration
         .builder(context)
@@ -58,7 +63,7 @@ class TelecomManager(private var context: Application) {
                 callActivityClass = CallActivity::class.java.canonicalName
                 appActivityClass = MainActivity::class.java.canonicalName
                 setContactNameResolver(_contactNameResolver)
-                notifyInForeground = false
+                notifyInForeground = true
             }
         )
         .build()
@@ -80,10 +85,6 @@ class TelecomManager(private var context: Application) {
         CoroutineScope(Dispatchers.IO).launch {
             telecomEvents.collect { telecomEvent ->
                 if (telecomEvent is TelecomContract.CallEvent.OnCallDisconnected) {
-                    val callId = telecomEvent.call.id
-                    if (callsStartTimeMap.contains(callId)) {
-                        callsStartTimeMap.remove(callId)
-                    }
                     val isMissed = !telecomEvent.call.isOutCall
                             && telecomEvent.disconnectDetails?.duration == 0
                             && telecomEvent.disconnectDetails.disconnectReason == DisconnectReason.ENDED_BY_PEER
@@ -92,11 +93,6 @@ class TelecomManager(private var context: Application) {
                     if (isMissed && !isSystemManaged) {
                         // In SYSTEM_MANAGED_SERVICE mode a notification will be shown by the Phone app
                         showMissedCallNotification(telecomEvent.call.formattedNumber)
-                    }
-                } else if (telecomEvent is TelecomContract.CallEvent.OnCallConnected) {
-                    val callId = telecomEvent.call.id
-                    if (!callsStartTimeMap.contains(callId)) {
-                        callsStartTimeMap[telecomEvent.call.id] = System.currentTimeMillis()
                     }
                 }
             }
@@ -163,13 +159,13 @@ class TelecomManager(private var context: Application) {
         _telecomEvents.emit(event)
     }
 
-    fun activateAccount(accountModel: Account?) {
-        Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel?.number}")
+    fun activateAccount(accountModel: Account) {
+        Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel.number}")
         if (callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
-                accountModel?.let { SettingsRepository(context).saveAccountDetails(accountModel) }
+                accountModel.let { SettingsRepository(context).saveAccountDetails(accountModel) }
                 communicator.run {
-                    callClient.register(accountModel?.number ?: " ", accountModel?.password ?: " ")
+                    callClient.register(accountModel.number, accountModel.password)
                 }
             }
         } else {
@@ -191,15 +187,7 @@ class TelecomManager(private var context: Application) {
     fun call(number: String) {
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
         Log.d(TELECOM_MANAGER, "call: number = $number")
-        callClient.placeCall(number)
-    }
-
-    fun callDuration(callId: String): UInt? {
-        if (callsStartTimeMap.contains(callId)) {
-            return ((System.currentTimeMillis() - callsStartTimeMap[callId]!!) / 1000).toUInt()
-        } else {
-            return null
-        }
+        callClient.placeCall(number, _callContext)
     }
 
     fun acceptCall(callId: String) {
@@ -372,6 +360,10 @@ class TelecomManager(private var context: Application) {
 
     fun isNotificationInForegroundEnabled(): Boolean {
         return configuration.notifyInForeground
+    }
+
+    fun setCallContext(context: String) {
+        _callContext = context
     }
 
     companion object {

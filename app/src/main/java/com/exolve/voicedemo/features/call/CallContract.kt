@@ -40,7 +40,8 @@ class CallContract {
             val indexForUiTest: Int,
             val isInConference: Boolean = false,
             val isMuted: Boolean = false,
-            var duration: UInt,
+            val extraContext: String,
+            var duration: Int,
             var qualityRating: Float = 5.0f
         ) {
             fun isActive(): Boolean {
@@ -60,6 +61,7 @@ class CallContract {
         @Immutable data class OnHoldButtonClicked(val callsId: String) : Event()
         @Immutable data class OnAudioRouteSelect(val route: AudioRoute) : Event()
         @Immutable object OnMuteButtonClicked : Event()
+        @Immutable data class OnHoldActiveCallButtonClicked(val hold: Boolean) : Event()
         @Immutable object OnSpeakerButtonClicked : Event()
         @Immutable object OnTransferButtonClicked : Event()
         @Immutable data class OnCallTransferButtonClicked(val selectedCall: String) : Event()

@@ -54,7 +54,9 @@ class CallViewModel(application: Application) :
                 if (uiState.value.calls.isNotEmpty()) {
                     uiState.value.calls.toMutableList().filter { it.isActive() }.also { calls ->
                         calls.forEach { call ->
-                                call.duration = telecomManager.callDuration(callId = call.callsId) ?: 0u
+                                call.duration = telecomManager.getCalls()
+                                    .find{ it.id == call.callsId}
+                                    .let { it?.duration() ?: 0 }
                                 if (call.status == CallState.CONNECTED) {
                                     telecomManager.qualityRating(call.callsId)?.let { callRating ->
                                         call.qualityRating = callRating
@@ -95,11 +97,12 @@ class CallViewModel(application: Application) :
         status = call.state,
         isInConference = call.inConference(),
         isMuted = call.isMuted,
+        extraContext = call.extraContext,
         qualityRating = ((list.find { callFromList -> call.id == callFromList.callsId })?.qualityRating
             ?: 5.0f),
         indexForUiTest = ((list.find { callFromList -> call.id == callFromList.callsId })
             ?.let { list.indexOf(it) } ?: list.size),
-        duration = telecomManager.callDuration(callId = call.id) ?: 0u
+        duration = call.duration()
     )
 
     override fun handleUiEvent(event: UiEvent) {
@@ -113,9 +116,6 @@ class CallViewModel(application: Application) :
                 resumeCall(event.callsId)
             }
             is Event.OnHoldButtonClicked -> {
-                setState { copy(
-                    currentCallId = "",
-                ) }
                 holdCall(event.callsId)
             }
             is Event.OnAudioRouteSelect -> { setAudioRoute(event.route) }
@@ -127,6 +127,7 @@ class CallViewModel(application: Application) :
                 }
             }
             is Event.OnMuteButtonClicked -> { muteCall() }
+            is Event.OnHoldActiveCallButtonClicked -> { holdCall(hold = event.hold) }
             is Event.OnDtmfButtonClicked -> { handleDtmf() }
             is Event.OnTransferButtonClicked -> { handleTransfer() }
             is Event.OnCallTransferButtonClicked -> { handleCallTransfer(event.selectedCall) }
@@ -306,6 +307,32 @@ class CallViewModel(application: Application) :
         val muted = conferenceCalls.fold(false) { mu, call -> mu || call.isMuted }
         conferenceCalls.forEach {
             telecomManager.muteCall(callId = it.callsId, mute = !muted)
+        }
+    }
+
+    private fun holdCall(hold: Boolean) {
+        Log.d(CALL_VIEW_MODEL, "CallViewModel: holdCall")
+        if (!uiState.value.hasConference) {
+            val callId = uiState.value.currentCallId
+            val call = uiState.value.calls.find { it.callsId == callId }
+            call?.let {
+                Log.d(CALL_VIEW_MODEL, "CallViewModel: holdCall ${it.callsId} ${it.status == CallState.ON_HOLD}")
+                if (hold) {
+                    telecomManager.holdCall(callId = callId)
+                } else {
+                    telecomManager.resumeCall(callId = callId)
+                }
+            }
+            return
+        }
+
+        val conferenceCalls = uiState.value.calls.filter { it.isInConference }
+        conferenceCalls.forEach {
+            if (hold) {
+                telecomManager.holdCall(callId = it.callsId)
+            } else {
+                telecomManager.resumeCall(callId = it.callsId)
+            }
         }
     }
 

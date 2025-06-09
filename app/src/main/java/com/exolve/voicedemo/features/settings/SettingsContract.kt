@@ -16,6 +16,7 @@ class SettingsContract {
         val voipBackgroundRunning: Boolean,
         val detectCallLocation: Boolean,
         val telecomManagerMode: TelecomIntegrationMode,
+        val callContext: String,
         val sipTraces: Boolean, // need restart
         val logLevel: LogLevel, // need restart
         val useEncryption: Boolean, // need restart
@@ -36,6 +37,7 @@ class SettingsContract {
         @Immutable data class OnLogLevelChanged(val level: LogLevel) : Event()
         @Immutable data class OnUseEncryptionChanged(val enabled: Boolean) : Event()
         @Immutable data class OnEnvironmentChanged(val environment: String) : Event()
+        @Immutable data class OnCallContextChanged(val callContext: String) : Event()
         @Immutable data object Restart : Event()
     }
 

@@ -21,17 +21,18 @@ class CallsListener(
     private val context: Context
 ) : ICallsListener {
 
-    override fun callNew(p0: Call?) {
+    override fun callNew(call: Call?) {
         Log.d(
-            CALLS_LISTENER, "(markedLog): callNew(). Call ID: ${p0?.id}, " +
+            CALLS_LISTENER, "(markedLog): callNew(). Call ID: ${call?.id}, " +
+                    "context: ${call?.extraContext}, " +
                     "total calls: ${telecomManager.getCalls().size}"
         )
         CoroutineScope(Dispatchers.IO).launch {
-            p0?.let {
+            call?.let {
                 telecomManager.setState {
                     copy(
                         calls = telecomManagerState.value.calls.apply { add(it) },
-                        currentCall = p0,
+                        currentCall = call,
                     )
                 }
                 telecomManagerEvent.emit(CallEvent.OnNewCall(it))

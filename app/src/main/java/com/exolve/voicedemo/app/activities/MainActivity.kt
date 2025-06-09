@@ -187,7 +187,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleUiEvent(event: UiEvent) {
-        Log.d(MAIN_ACTIVITY, "handleUiEvent: $event")
         when (event) {
             is SettingsContract.Event.OnBackToCallActivityClicked -> backToCallActivity()
             is DialerContract.Event.OnBackToCallActivityClicked -> backToCallActivity()

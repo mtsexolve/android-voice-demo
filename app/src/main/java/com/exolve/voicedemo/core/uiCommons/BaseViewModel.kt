@@ -55,8 +55,6 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
     fun setState(reduce: State.() -> State) {
         val newState = currentState.reduce()
         _uiState.value = newState
-        Log.d("BaseViewModel", "setState: $newState")
-
     }
 
     private fun subscribeOnEvents() {
