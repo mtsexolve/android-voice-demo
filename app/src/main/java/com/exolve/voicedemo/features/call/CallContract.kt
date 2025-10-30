@@ -35,6 +35,7 @@ class CallContract {
             val isCallOutgoing: Boolean,
             val number: String,
             val formattedNumber: String,
+            val displayName: String,
             val callsId: String,
             val status: CallState,
             val indexForUiTest: Int,
@@ -48,6 +49,13 @@ class CallContract {
                 return status == CallState.CONNECTED ||
                         status == CallState.LOST_CONNECTION ||
                         status == CallState.ON_HOLD
+            }
+
+            fun getDisplayPresentation(): String {
+                if (displayName.isNotEmpty()) {
+                    return displayName
+                }
+                return formattedNumber
             }
         }
     }

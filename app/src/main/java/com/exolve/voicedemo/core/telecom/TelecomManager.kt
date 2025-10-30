@@ -15,14 +15,15 @@ import com.exolve.voicedemo.app.activities.CallActivity
 import com.exolve.voicedemo.app.activities.MainActivity
 import com.exolve.voicedemo.core.models.Account
 import com.exolve.voicedemo.core.repositories.SettingsRepository
+import com.exolve.voicedemo.core.utils.Utils
 import com.exolve.voicesdk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.*
+import java.time.Instant
+
 
 private const val TELECOM_MANAGER = "TelecomManager"
 
@@ -36,17 +37,15 @@ class TelecomManager(private var context: Application) {
     private var _callContext: String = ""
 
     private val _contactNameResolver = ContactNameResolverExt { phoneNumber, extraContext, resultHandler ->
-            Log.d(TELECOM_MANAGER, "Contact resolver lookup: phone: $phoneNumber, context: $extraContext")
-            CoroutineScope(Dispatchers.Main).launch {
-                if (!TextUtils.isEmpty(extraContext)) {
-                    // to emulate delay for contact lookup via API
-                    delay(150)
-                    resultHandler!!.accept("Call with context: $extraContext")
-                } else if (phoneNumber == "74997090111") {
-                    resultHandler!!.accept("Telecom company")
-                }
+        Log.d(TELECOM_MANAGER, "Contact resolver lookup: phone: $phoneNumber, context: $extraContext")
+        CoroutineScope(Dispatchers.Main).launch {
+            var name = Utils.getDisplayName(context, phoneNumber)
+            if (!TextUtils.isEmpty(extraContext)) {
+                name += " with context: $extraContext"
             }
+            resultHandler!!.accept(name)
         }
+    }
 
     private val configuration: Configuration = Configuration
         .builder(context)
@@ -55,7 +54,6 @@ class TelecomManager(private var context: Application) {
         .enableSipTrace(isSipTracesEnabled())
         .enableNotifications(true)
         .enableRingtone(true)
-        .enableBackgroundRunning(SettingsRepository(context).isBackgroundRunningEnabled())
         .enableDetectLocation(SettingsRepository(context).isDetectLocationEnabled())
         .telecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
         .notificationConfiguration(
@@ -74,10 +72,11 @@ class TelecomManager(private var context: Application) {
 
     init {
         val env = SettingsRepository(context).getEnvironment()
+        val savedRegistrationMode = SettingsRepository(context).getRegistrationMode()
         communicator = if (!env.isNullOrEmpty()) {
-            Communicator.initialize(context, configuration, ApplicationState.BACKGROUND, env)
+            Communicator.initialize(context, configuration, savedRegistrationMode, ApplicationState.BACKGROUND, env)
         } else {
-            Communicator.initialize(context, configuration, ApplicationState.BACKGROUND)
+            Communicator.initialize(context, configuration, savedRegistrationMode, ApplicationState.BACKGROUND)
         }
 
         createNotificationChannel()
@@ -92,7 +91,7 @@ class TelecomManager(private var context: Application) {
                         SettingsRepository(context).getTelecomManagerMode() == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE
                     if (isMissed && !isSystemManaged) {
                         // In SYSTEM_MANAGED_SERVICE mode a notification will be shown by the Phone app
-                        showMissedCallNotification(telecomEvent.call.formattedNumber)
+                        showMissedCallNotification(telecomEvent.call.number)
                     }
                 }
             }
@@ -118,7 +117,7 @@ class TelecomManager(private var context: Application) {
         val channel = NotificationChannel(
             missedCallsChannelId,
             context.getString(R.string.missed_calls_channel_name),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = context.getString(R.string.missed_calls_channel_description)
         }
@@ -126,11 +125,10 @@ class TelecomManager(private var context: Application) {
         notificationManager.createNotificationChannel(channel)
     }
 
-
     private fun showMissedCallNotification(number: String) {
         val notification = Notification.Builder(context, missedCallsChannelId)
             .setSmallIcon(android.R.drawable.sym_call_missed)
-            .setContentText(context.getString(R.string.missed_call_notification_text, number))
+            .setContentText(context.getString(R.string.missed_call_notification_text, Utils.getDisplayName(context, number)))
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setCategory(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Notification.CATEGORY_MISSED_CALL else Notification.CATEGORY_CALL)
             .setContentIntent(
@@ -139,15 +137,17 @@ class TelecomManager(private var context: Application) {
                     0,
                     Intent(context, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    },
+                    }
+                    .putExtra(Utils.CALL_NUMBER_EXTRA, number),
                     PendingIntent.FLAG_IMMUTABLE
                 )
             )
             .setAutoCancel(true)
+            .setShowWhen(true)
             .build()
-
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(1, notification)
+        val id = (Instant.now().epochSecond and Int.MAX_VALUE.toLong()).toInt()
+        notificationManager.notify(id, notification)
     }
 
     fun getVersionDescription(): String {
@@ -165,7 +165,7 @@ class TelecomManager(private var context: Application) {
             CoroutineScope(Dispatchers.IO).launch {
                 accountModel.let { SettingsRepository(context).saveAccountDetails(accountModel) }
                 communicator.run {
-                    callClient.register(accountModel.number, accountModel.password)
+                    callClient.setAccount(accountModel.number, accountModel.password)
                 }
             }
         } else {
@@ -176,7 +176,7 @@ class TelecomManager(private var context: Application) {
     fun unregisterAccount() {
         Log.d(TELECOM_MANAGER, "deactivateAccount")
         CoroutineScope(Dispatchers.IO).launch {
-            callClient.unregister()
+            callClient.clearAccount()
         }
     }
 
@@ -271,13 +271,13 @@ class TelecomManager(private var context: Application) {
         communicator.setApplicationState(ApplicationState.FOREGROUND)
     }
 
-    fun isBackgroundRunningEnabled(): Boolean {
-        return communicator.configurationManager.isBackgroundRunningEnabled
+    fun registrationMode(): RegistrationMode {
+        return communicator.configurationManager.registrationMode
     }
 
-    fun setBackgroundRunningEnabled(enable: Boolean) {
-        communicator.configurationManager.isBackgroundRunningEnabled = enable
-        SettingsRepository(context).setBackgroundRunningEnabled(enable)
+    fun setRegistrationMode(registrationMode: RegistrationMode) {
+        communicator.configurationManager.registrationMode = registrationMode
+        SettingsRepository(context).setRegistrationMode(registrationMode)
     }
 
     fun isDetectLocationEnabled(): Boolean {
@@ -300,6 +300,11 @@ class TelecomManager(private var context: Application) {
     fun setTelecomIntegrationMode(mode: TelecomIntegrationMode) {
         communicator.configurationManager.telecomIntegrationMode = mode
         SettingsRepository(context).setTelecomManagerMode(mode)
+        if (mode == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE && mode != telecomManagerIntegrationMode()) {
+            PendingIntent.getActivity(context, 0,
+                Intent(android.telecom.TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS),
+                PendingIntent.FLAG_IMMUTABLE).send()
+        }
     }
 
     fun isSipTracesEnabled(): Boolean {

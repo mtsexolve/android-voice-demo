@@ -46,7 +46,7 @@
     <string name="call_screen_current_no_connection">no connection</string>
     <string name="call_screen_current_call_ended">call ended</string>
     <string name="settings_logs_button">Send logs</string>
-    <string name="background_running">Background running</string>
+    <string name="registration_mode">Registration mode</string>
     <string name="location_detect">Detect location</string>
     <string name="telecom_framework_integration">Telecom Framework integration</string>
     <string name="sip_traces">Enable SIP traces</string>

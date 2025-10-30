@@ -3,6 +3,7 @@ package com.exolve.voicedemo.core.repositories
 import android.content.Context
 import com.exolve.voicedemo.core.models.Account
 import com.exolve.voicesdk.LogLevel
+import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.TelecomIntegrationMode
 import com.google.gson.Gson
 
@@ -12,7 +13,7 @@ class SettingsRepository(
 
     private val PREFERENCES = "EXOLVE_PREFERENCES_FILE_KEY"
     private val ACCOUNT_KEY = "LOCAL_ACCOUNT_GSON_KEY"
-    private val BACKGROUND_RUNNING_KEY = "LOCAL_BACKGROUND_RUNNING"
+    private val REGISTRATION_MODE_KEY = "LOCAL_REGISTRATION_MODE"
     private val DETECT_LOCATION_KEY = "LOCAL_DETECT_LOCATION"
     private val TELECOM_MANAGER_MODE_KEY = "LOCAL_TELECOM_MANAGER_MODE"
     private val LAST_CALL_NUMBER_KEY = "LAST_CALL_NUMBER"
@@ -40,14 +41,15 @@ class SettingsRepository(
             .apply()
     }
 
-    fun setBackgroundRunningEnabled(enabled: Boolean) {
+    fun setRegistrationMode(registrationMode: RegistrationMode) {
         editor
-            .putBoolean(BACKGROUND_RUNNING_KEY, enabled)
+            .putString(REGISTRATION_MODE_KEY, registrationMode.name)
             .apply()
     }
 
-    fun isBackgroundRunningEnabled(): Boolean {
-        return dataSource.getBoolean(BACKGROUND_RUNNING_KEY, false)
+    fun getRegistrationMode(): RegistrationMode {
+        val modeName = dataSource.getString(REGISTRATION_MODE_KEY, RegistrationMode.WHEN_ACTIVE.name)
+        return RegistrationMode.valueOf(modeName!!)
     }
 
     fun setDetectCallLocationEnabled(enabled: Boolean) {

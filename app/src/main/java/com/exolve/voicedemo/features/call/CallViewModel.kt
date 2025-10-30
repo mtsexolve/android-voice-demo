@@ -14,6 +14,7 @@ import com.exolve.voicedemo.features.call.CallContract.*
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
 import com.exolve.voicedemo.core.utils.OnDropData
+import com.exolve.voicedemo.core.utils.Utils
 import com.exolve.voicesdk.CallState
 import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
@@ -93,6 +94,7 @@ class CallViewModel(application: Application) :
         isCallOutgoing = call.isOutCall,
         number = call.number,
         formattedNumber = call.formattedNumber,
+        displayName = Utils.getDisplayName((getApplication() as Application).applicationContext, call.number),
         callsId = call.id,
         status = call.state,
         isInConference = call.inConference(),

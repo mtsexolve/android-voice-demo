@@ -6,6 +6,7 @@ import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiState
 import com.exolve.voicesdk.LogLevel
 import com.exolve.voicesdk.TelecomIntegrationMode
+import com.exolve.voicesdk.RegistrationMode
 
 class SettingsContract {
 
@@ -13,7 +14,7 @@ class SettingsContract {
     @Immutable
     data class State(
         val versionDescription: String,
-        val voipBackgroundRunning: Boolean,
+        val registrationMode: RegistrationMode,
         val detectCallLocation: Boolean,
         val telecomManagerMode: TelecomIntegrationMode,
         val callContext: String,
@@ -30,7 +31,7 @@ class SettingsContract {
     sealed class Event : UiEvent {
         @Immutable data object OnBackToCallActivityClicked : Event()
         @Immutable data object OnSendLogsClicked : Event()
-        @Immutable data class OnBackgroundRunningChanged(val enabled: Boolean) : Event()
+        @Immutable data class OnRegistrationModeChanged(val mode: RegistrationMode) : Event()
         @Immutable data class OnCallLocationDetectChanged(val enabled: Boolean) : Event()
         @Immutable data class OnTelecomManagerModeChanged(val mode: TelecomIntegrationMode) : Event()
         @Immutable data class OnSipTracesChanged(val enabled: Boolean) : Event()

@@ -2,7 +2,6 @@ package com.exolve.voicedemo.core.utils
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,9 +32,11 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.features.call.CallContract.State
@@ -91,15 +92,20 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                     fontSize = 17.sp,
                     color = Color.Black,
                     fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
-                    //background = Color.Cyan
                 )
 
+                val midGuideline = createGuidelineFromStart(0.5f)
+
                 Text(
-                    text = data.first.formattedNumber,
+                    text = data.first.getDisplayPresentation(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = textStyle,
                     modifier = Modifier.constrainAs(textFirst) {
                         bottom.linkTo(iconFirst.bottom)
                         start.linkTo(iconFirst.end)
+                        end.linkTo(midGuideline)
+                        width = Dimension.fillToConstraints
                     }
                 )
 
@@ -112,11 +118,15 @@ fun OnDropActionSelectorView(data: OnDropData, modifier: Modifier, closeCallback
                 )
 
                 Text(
-                    text = data.second.formattedNumber,
+                    text = data.second.getDisplayPresentation(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = textStyle,
                     modifier = Modifier.constrainAs(textSecond) {
+                        start.linkTo(midGuideline)
                         bottom.linkTo(iconSecond.bottom)
                         end.linkTo(iconSecond.start)
+                        width = Dimension.fillToConstraints
                     }
                 )
 

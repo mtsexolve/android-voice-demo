@@ -12,6 +12,7 @@ import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
 import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
+import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.RegistrationState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -48,6 +49,7 @@ class DialerViewModel(application: Application) :
             is DialerContract.Event.OnCallButtonClicked -> { call() }
             is DialerContract.Event.OnCallButtonLongPressed -> { restoreCallNumber() }
             is DialerContract.Event.OnDigitButtonClicked -> {updateTextFieldState(event.index)}
+            is DialerContract.Event.OnSetCallingNumber -> {setTextFieldState(event.value)}
         }
     }
 
@@ -57,32 +59,29 @@ class DialerViewModel(application: Application) :
         }
     }
 
+    private fun setTextFieldState(value: String) {
+        setState { copy(dialerText = value) }
+    }
+
     private fun call() {
-        viewModelScope.launch(Dispatchers.Main) {
-            when {
-                telecomManager.getRegistrationState() == RegistrationState.REGISTERED && uiState.value.dialerText.isEmpty() -> {
-                    dialerToast?.cancel()
-                    dialerToast = Toast.makeText(getApplication(),R.string.dialer_toast_enter_number, Toast.LENGTH_LONG)
-                    dialerToast.show()
-                }
-                telecomManager.getRegistrationState() != RegistrationState.REGISTERED -> {
-                     dialerToast?.cancel()
-                     dialerToast = Toast.makeText(getApplication(),R.string.dialer_toast_activate, Toast.LENGTH_LONG)
-                     dialerToast.show()
-                }
-                else -> {
-                    settingsRepository.setLastCallNumber(uiState.value.dialerText)
-                    if(settingsRepository.isDetectLocationEnabled()){
-                        cancelPermissionRequestCallback = requestPermissions(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                            onRequestedResult = { telecomManager.call(uiState.value.dialerText) }
-                        )
-                    } else {
-                        telecomManager.call(uiState.value.dialerText)
-                    }
-                }
+        val placeCall: (String) -> Unit  = {
+            try {
+                telecomManager.call(it)
+            } catch (e: IllegalArgumentException) {
+                dialerToast?.cancel()
+                dialerToast = Toast.makeText(getApplication(), e.message, Toast.LENGTH_LONG)
+                dialerToast.show()
             }
+        }
+        settingsRepository.setLastCallNumber(uiState.value.dialerText)
+        if (settingsRepository.isDetectLocationEnabled()) {
+            cancelPermissionRequestCallback = requestPermissions(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                onRequestedResult = { placeCall(uiState.value.dialerText) }
+            )
+        } else {
+            placeCall(uiState.value.dialerText)
         }
     }
 

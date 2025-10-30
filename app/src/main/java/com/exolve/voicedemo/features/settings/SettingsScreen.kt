@@ -34,6 +34,7 @@ import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.core.utils.SharingProvider
 import com.exolve.voicesdk.LogLevel
 import com.exolve.voicesdk.TelecomIntegrationMode
+import com.exolve.voicesdk.RegistrationMode
 
 private const val SETTINGS_SCREEN = "SettingsScreen"
 
@@ -53,7 +54,7 @@ fun SettingsScreen(
             end = 20.dp,
         ),
         versionDescription = state.versionDescription,
-        voipBackgroundRunning = state.voipBackgroundRunning,
+        registrationMode = state.registrationMode,
         detectCallLocation = state.detectCallLocation,
         telecomManagerMode = state.telecomManagerMode,
         sipTraces = state.sipTraces,
@@ -72,7 +73,7 @@ fun getBundleId(context: Context): String {
 fun SettingsContent(
     onEvent: (event: SettingsContract.Event) -> Unit,
     versionDescription: String,
-    voipBackgroundRunning: Boolean,
+    registrationMode: RegistrationMode,
     detectCallLocation: Boolean,
     telecomManagerMode: TelecomIntegrationMode,
     sipTraces: Boolean,
@@ -100,7 +101,7 @@ fun SettingsContent(
                     .verticalScroll(rememberScrollState())
                     .weight(1f, fill = true)
             ) {
-                OptionBackgroundRunning(onEvent, voipBackgroundRunning)
+                OptionRegistrationMode(onEvent, registrationMode)
                 OptionDetectLocation(onEvent, detectCallLocation)
                 OptionTelecomIntegration(onEvent, telecomManagerMode)
                 OptionSipTraces(onEvent, sipTraces)
@@ -135,11 +136,10 @@ fun SettingsContent(
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun OptionBackgroundRunning(
+fun OptionRegistrationMode(
     onEvent: (event: SettingsContract.Event) -> Unit,
-    voipBackgroundRunning: Boolean
+    registrationMode: RegistrationMode
 ) {
     Row( verticalAlignment = Alignment.CenterVertically )
     {
@@ -149,21 +149,56 @@ fun OptionBackgroundRunning(
                 fontSize = 14.sp,
                 color = colorResource(id = R.color.mts_text_grey)
             ),
-            text = stringResource(id = R.string.background_running)
+            text = stringResource(id = R.string.registration_mode)
         )
 
-        Switch(
+        var expanded by remember { mutableStateOf(false) }
+        var selectedOption by remember { mutableStateOf(registrationMode.name) }
+        val options = RegistrationMode.entries.map { it.name }
+
+        Box(
             modifier = Modifier
-                .semantics { testTagsAsResourceId = true }
-                .testTag("button_settings_bg_mode_switch"),
-            checked = voipBackgroundRunning,
-            onCheckedChange = {
-                onEvent(SettingsContract.Event.OnBackgroundRunningChanged(it))
-            },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = colorResource(id = R.color.mts_red),
+                .padding(start = 8.dp)
+                .clickable { expanded = true }
+        ) {
+            Text(
+                text = selectedOption,
+                modifier = Modifier.padding(8.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                    fontSize = 14.sp,
+                    color = colorResource(id = R.color.mts_text_grey)
+                )
             )
-        )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(onClick = {
+                        selectedOption = option
+                        expanded = false
+                        onEvent(
+                            SettingsContract.Event.OnRegistrationModeChanged(
+                                RegistrationMode.valueOf(option)
+                            )
+                        )
+                    }) {
+                        Text(
+                            text = option,
+                            style = TextStyle(
+                                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                                fontSize = 14.sp,
+                                color = colorResource(id = R.color.mts_text_grey)
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

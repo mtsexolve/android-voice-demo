@@ -35,7 +35,7 @@ class SettingsViewModel(application: Application) :
         Log.d(SETTINGS_VIEWMODEL, "initializeState")
         return SettingsContract.State(
             versionDescription = "",
-            voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled(),
+            registrationMode = telecomManager.registrationMode(),
             detectCallLocation = telecomManager.isDetectLocationEnabled(),
             telecomManagerMode = telecomManager.telecomManagerIntegrationMode(),
             callContext = "",
@@ -57,9 +57,9 @@ class SettingsViewModel(application: Application) :
                 sharingProvider.share("Share SDK logs")
             }
 
-            is SettingsContract.Event.OnBackgroundRunningChanged -> {
-                telecomManager.setBackgroundRunningEnabled(event.enabled)
-                setState { copy(voipBackgroundRunning = telecomManager.isBackgroundRunningEnabled()) }
+            is SettingsContract.Event.OnRegistrationModeChanged -> {
+                telecomManager.setRegistrationMode(event.mode)
+                setState { copy(registrationMode = telecomManager.registrationMode()) }
             }
 
             is SettingsContract.Event.OnCallLocationDetectChanged -> {

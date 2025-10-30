@@ -21,9 +21,13 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat.getString
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
@@ -33,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import com.exolve.voicedemo.app.navigation.BottomNavigationDestinations
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
+import com.exolve.voicedemo.core.utils.Utils
 import com.exolve.voicedemo.features.account.AccountScreen
 import com.exolve.voicedemo.features.account.AccountViewModel
 import com.exolve.voicedemo.features.bars.AppBottomNavigation
@@ -41,6 +46,8 @@ import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerScreen
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.features.settings.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val MAIN_ACTIVITY = "MainActivity"
@@ -64,6 +71,7 @@ class MainActivity : ComponentActivity() {
             Log.i(MAIN_ACTIVITY, "permission denied")
         }
     }
+
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             handleContactResult(result)
@@ -126,7 +134,7 @@ class MainActivity : ComponentActivity() {
             requestFullscreenIntentPermission()
         }
         initEventListeners(settingsViewModel, dialerViewModel)
-        handleDeepLink(intent)
+        handleIntent(intent)
         setContent {
             AndroidVoiceExampleTheme {
                 Surface { MainAppScreen(dialerViewModel, accountViewModel, settingsViewModel) }
@@ -136,7 +144,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleDeepLink(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        if (!handleMissedCallNumber(intent)) {
+            handleDeepLink(intent)
+        }
+    }
+
+    fun handleMissedCallNumber(intent: Intent): Boolean {
+        val number = intent.getStringExtra(Utils.CALL_NUMBER_EXTRA)
+        if (number != null) {
+            val route = getString(applicationContext, BottomNavigationDestinations.Dialer.screenRouteStringId)
+            Utils.navigate(route)
+            CoroutineScope(Dispatchers.IO).launch {
+                dialerViewModel.setEvent(DialerContract.Event.OnSetCallingNumber(value = number))
+            }
+            return true
+        }
+        return false
     }
 
     private fun handleDeepLink(intent: Intent) {
@@ -219,6 +246,15 @@ fun MainAppScreen(
         val dialerRoute = stringResource(id = BottomNavigationDestinations.Dialer.screenRouteStringId)
         val accountRoute = stringResource(id = BottomNavigationDestinations.Account.screenRouteStringId)
         val settingsRoute = stringResource(id = BottomNavigationDestinations.Settings.screenRouteStringId)
+        val destination by Utils.destination.collectAsState()
+        LaunchedEffect(destination) {
+            if (destination.isNotEmpty() && navController.currentDestination?.route != destination) {
+                navController.navigate(destination) {
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
         NavHost(
             navController = navController,
             startDestination = dialerRoute,

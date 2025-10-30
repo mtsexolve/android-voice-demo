@@ -26,6 +26,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.app.navigation.BottomNavigationDestinations
+import com.exolve.voicedemo.core.utils.Utils
 import okhttp3.internal.immutableListOf
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -70,10 +71,7 @@ fun AppBottomNavigation(navController: NavController) {
                 alwaysShowLabel = true,
                 selected = currentRoute == desiredDestination,
                 onClick = {
-                    navController.navigate(desiredDestination) {
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    Utils.navigate(desiredDestination)
                 }
             )
         }

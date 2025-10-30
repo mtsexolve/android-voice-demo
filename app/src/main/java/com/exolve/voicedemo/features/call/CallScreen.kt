@@ -30,6 +30,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -258,6 +259,34 @@ fun CurrentCallTextField(
     calls: List<CallItemState>,
     hasConference: Boolean,
 ) {
+    var isContactNameShown = false
+    if (!hasConference) {
+        val currentCall = calls.find {
+            it.status == CallState.CONNECTED ||
+            it.status == CallState.ERROR ||
+            it.status == CallState.NEW
+        }
+        if (currentCall != null) {
+            val currentContactName = currentCall.displayName
+            if (currentCall.number != currentContactName) {
+                isContactNameShown = true
+                Text(
+                    text = currentContactName,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { testTagsAsResourceId = true }
+                        .testTag("text_view_callscreen_current_contact_name")
+                        .basicMarquee(),
+                    fontFamily = FontFamily(Font(R.font.mtswide_bold)),
+                    fontSize = 32.sp,
+                    style = LocalTextStyle.current.copy(
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
+        }
+    }
     Text(
         text = if (hasConference) {
             stringResource(id = R.string.call_screen_current_conference) + StringBuilder().apply {
@@ -266,7 +295,7 @@ fun CurrentCallTextField(
                         ?.also {conferenceCall ->
                             this.append(
                                 " ",
-                                conferenceCall.formattedNumber,
+                                conferenceCall.getDisplayPresentation(),
                                 ","
                             )
                         }
@@ -279,8 +308,8 @@ fun CurrentCallTextField(
             } else {
                 calls.find {
                     it.status == CallState.CONNECTED ||
-                            it.status == CallState.ERROR ||
-                            it.status == CallState.NEW
+                    it.status == CallState.ERROR ||
+                    it.status == CallState.NEW
                 }?.formattedNumber
                     ?: stringResource(id = R.string.call_screen_current_all_on_hold)
             }
@@ -291,13 +320,15 @@ fun CurrentCallTextField(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { testTagsAsResourceId = true }
-
             .testTag("text_view_callscreen_current_number")
             .basicMarquee(),
         fontFamily = FontFamily(Font(R.font.mtswide_bold)),
-        fontSize = 32.sp,
-        style = LocalTextStyle.current.copy(
-            textAlign = TextAlign.Center)
+        fontSize = if (isContactNameShown) {
+            16.sp
+        } else {
+            32.sp
+        },
+        style = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
     )
 }
 
@@ -544,12 +575,14 @@ fun CallLineItem(
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    item.formattedNumber + " ${item.status.toString().lowercase()}",
+                    item.getDisplayPresentation() + " ${item.status.toString().lowercase()}",
                     modifier = Modifier
                         .semantics { testTagsAsResourceId = true }
                         .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
                         .padding(vertical = 8.dp)
                         .weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
                     fontSize = 17.sp,
                     color = colorResource(id = R.color.call_card_number_text)
@@ -743,7 +776,7 @@ fun ConferenceLineItem(
         colorResource(id = R.color.mts_bg_grey)//if (!item.isInConference) colorResource(id = R.color.mts_bg_grey) else colorResource(id = R.color.mts_text_grey)
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp)) {
             Text(
-                item.formattedNumber,
+                item.getDisplayPresentation(),
                 modifier = Modifier
                     .semantics { testTagsAsResourceId = true }
                     .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
