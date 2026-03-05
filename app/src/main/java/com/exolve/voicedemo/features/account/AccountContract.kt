@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEffect
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiState
+import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.RegistrationState
 
 class AccountContract {
@@ -15,13 +16,13 @@ class AccountContract {
         val password: String,
         val token: String,
         val registrationState: RegistrationState = RegistrationState.NOT_REGISTERED,
+        val registrationMode: RegistrationMode = RegistrationMode.WHEN_ACTIVE,
     ) : UiState
 
     // Events that user performs
     @Immutable
     sealed class Event : UiEvent {
         @Immutable data object OnActivateClicked : Event()
-        @Immutable data object OnBackToCallActivityClicked : Event()
         @Immutable data class UserTexFieldChanged(override val textState: String) : Event(),
             FillableLoginField
         @Immutable data class PasswordTexFieldChanged(override val textState: String) : Event(),

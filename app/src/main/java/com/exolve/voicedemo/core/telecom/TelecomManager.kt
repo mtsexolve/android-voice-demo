@@ -110,6 +110,7 @@ class TelecomManager(private var context: Application) {
             )
             setRegistrationListener(RegistrationListener(this@TelecomManager, context), context.mainLooper)
             setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
+            setCredentialsProvider(CredentialsProvider(SettingsRepository(context)), context.mainLooper)
         }
     }
 
@@ -159,13 +160,13 @@ class TelecomManager(private var context: Application) {
         _telecomEvents.emit(event)
     }
 
-    fun activateAccount(accountModel: Account) {
-        Log.d(TELECOM_MANAGER, "activateAccount: ${accountModel.number}")
+    fun activateAccount(account: Account) {
+        Log.d(TELECOM_MANAGER, "activateAccount: ${account.number}")
         if (callClient.registrationState != RegistrationState.REGISTERED) {
             CoroutineScope(Dispatchers.IO).launch {
-                accountModel.let { SettingsRepository(context).saveAccountDetails(accountModel) }
+                account.let { SettingsRepository(context).saveAccountDetails(account) }
                 communicator.run {
-                    callClient.setAccount(accountModel.number, accountModel.password)
+                    callClient.setAccount(account.number, account.password)
                 }
             }
         } else {
@@ -186,8 +187,16 @@ class TelecomManager(private var context: Application) {
 
     fun call(number: String) {
         telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
-        Log.d(TELECOM_MANAGER, "call: number = $number")
-        callClient.placeCall(number, _callContext)
+        if (registrationMode() == RegistrationMode.PER_CALL_CREDENTIALS) {
+            val account = SettingsRepository(context).fetchAccountDetails()
+            account?.let {
+                Log.d(TELECOM_MANAGER, "call: number = $number as ${account.number}")
+                callClient.placeCall(number, _callContext, account.number, account.password)
+            }
+        } else {
+            Log.d(TELECOM_MANAGER, "call: number = $number")
+            callClient.placeCall(number, _callContext)
+        }
     }
 
     fun acceptCall(callId: String) {

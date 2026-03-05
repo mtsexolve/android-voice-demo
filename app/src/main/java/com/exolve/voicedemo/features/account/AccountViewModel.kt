@@ -8,6 +8,7 @@ import android.content.Context.CLIPBOARD_SERVICE
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.util.Log.d
 import android.widget.Toast
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
@@ -24,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 private const val ACCOUNT_VIEWMODEL = "AccountViewModel"
@@ -55,16 +57,24 @@ class AccountViewModel(application: Application) :
                 }
             }
             launch(Dispatchers.IO) {
-                Log.d(ACCOUNT_VIEWMODEL, "launch getAccountDetail")
-                accountRepository.fetchAccountDetails()?.let {
+                val account = accountRepository.fetchAccountDetails()
+                val registrationMode = accountRepository.getRegistrationMode()
+                val registrationState = telecomManager.getRegistrationState()
+                withContext(Dispatchers.Main) {
+                    account?.let {
+                        setState {
+                            copy(
+                                number = it.number,
+                                password = it.password
+                            )
+                        }
+                    }
                     setState {
                         copy(
-                            number = it.number,
-                            password = it.password,
-                            registrationState = telecomManager.getRegistrationState()
+                            registrationMode = registrationMode,
+                            registrationState = registrationState
                         )
                     }
-                    Log.d(ACCOUNT_VIEWMODEL, "setState() loaded ")
                 }
             }
         }
@@ -77,18 +87,17 @@ class AccountViewModel(application: Application) :
             password = "",
             token = getApplication<CallApplication>().getString(R.string.default_token).lowercase(),
             registrationState = telecomManager.getRegistrationState(),
+            registrationMode = SettingsRepository(getApplication()).getRegistrationMode(),
         )
     }
 
     override suspend fun handleTelecomEvent(event: TelecomEvent) {
         when (event) {
-            is RegistrationEvent -> handleRegistrationEvent(event = event)
+            is RegistrationEvent -> {
+                d(ACCOUNT_VIEWMODEL, "handleRegistrationEvent: $event")
+                setState { copy(registrationState = telecomManager.getRegistrationState()) }
+            }
         }
-    }
-
-    private fun handleRegistrationEvent(event: RegistrationEvent) {
-        Log.d(ACCOUNT_VIEWMODEL, "handleRegistrationEvent: $event")
-        setState { copy(registrationState = telecomManager.getRegistrationState()) }
     }
 
     override fun handleUiEvent(event: AccountContract.Event) {
@@ -106,6 +115,13 @@ class AccountViewModel(application: Application) :
             }
 
             else -> {}
+        }
+    }
+
+    fun refreshRegistrationMode() {
+        val mode = accountRepository.getRegistrationMode()
+        if (uiState.value.registrationMode != mode) {
+            setState { copy(registrationMode = mode) }
         }
     }
 
@@ -203,11 +219,19 @@ class AccountViewModel(application: Application) :
         if (event is AccountContract.FillableLoginField)
             when (event) {
                 is AccountContract.Event.UserTexFieldChanged -> {
+                    val updatedPassword = uiState.value.password
                     setState { copy(number = newState) }
+                    accountRepository.saveAccountDetails(
+                        Account(number = newState, password = updatedPassword)
+                    )
                 }
 
                 is AccountContract.Event.PasswordTexFieldChanged -> {
+                    val updatedNumber = uiState.value.number
                     setState { copy(password = newState) }
+                    accountRepository.saveAccountDetails(
+                        Account(number = updatedNumber, password = newState)
+                    )
                 }
 
                 else -> {}
@@ -220,4 +244,3 @@ class AccountViewModel(application: Application) :
         cancelPermissionRequestCallback()
     }
 }
-

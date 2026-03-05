@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import com.exolve.voicedemo.R
+import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.RegistrationState
 
 private const val ACCOUNT_SCREEN = "AccountScreen"
@@ -41,8 +43,12 @@ fun AccountScreen(
     barPaddingValues: PaddingValues
 ) {
     val state by viewModel.uiState.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.refreshRegistrationMode()
+    }
     Log.d(ACCOUNT_SCREEN, "AccountScreen: updated state is $state")
     AccountContent(
+        state = state,
         onEvent = onEvent,
         modifier = Modifier.padding(
             top = barPaddingValues.calculateTopPadding(),
@@ -50,20 +56,13 @@ fun AccountScreen(
             start = 20.dp,
             end = 20.dp,
         ),
-        number = state.number,
-        password = state.password,
-        token = state.token,
-        registrationState = state.registrationState
     )
 }
 
 @Composable
 fun AccountContent(
+    state: AccountContract.State,
     onEvent: (event: AccountContract.Event) -> Unit,
-    number: String,
-    password: String,
-    token: String,
-    registrationState: RegistrationState,
     modifier: Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -79,11 +78,8 @@ fun AccountContent(
                 }
         ) {
             AccountView(
+                state = state,
                 onEvent = onEvent,
-                number = number,
-                password = password,
-                token = token,
-                registrationState = registrationState
             )
 
         }
@@ -93,11 +89,8 @@ fun AccountContent(
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AccountView(
+    state: AccountContract.State,
     onEvent: (event: AccountContract.Event) -> Unit,
-    number: String,
-    password: String,
-    token: String,
-    registrationState: RegistrationState
 ) {
     val customTextSelectionColor = TextSelectionColors(
         handleColor = colorResource(id = R.color.mts_red),
@@ -115,6 +108,7 @@ fun AccountView(
             passwordEditText,
             passwordHeader,
             activateButton,
+            activateNote,
             tokenEditText,
             tokenHeader,
         ) = createRefs()
@@ -135,7 +129,7 @@ fun AccountView(
         )
         CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColor) {
             OutlinedTextField(
-                value = number,
+                value = state.number,
                 onValueChange = { onEvent(AccountContract.Event.UserTexFieldChanged(it)) },
                 placeholder = { Text(stringResource(id = R.string.settings_hint_number)) },
                 modifier = Modifier
@@ -176,7 +170,7 @@ fun AccountView(
         )
         CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColor) {
             OutlinedTextField(
-                value = password,
+                value = state.password,
                 onValueChange = { onEvent(AccountContract.Event.PasswordTexFieldChanged(it)) },
                 placeholder = { Text(stringResource(id = R.string.settings_hint_password)) },
                 modifier = Modifier
@@ -203,6 +197,7 @@ fun AccountView(
             onClick = {
                 onEvent(AccountContract.Event.OnActivateClicked)
             },
+            enabled = state.registrationMode != RegistrationMode.PER_CALL_CREDENTIALS,
             modifier = Modifier
                 .semantics { testTagsAsResourceId = true }
                 .testTag("button_settings_activate")
@@ -217,7 +212,7 @@ fun AccountView(
             colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(id = R.color.mts_red)),
         ) {
             Text(
-                text = if (registrationState == RegistrationState.NOT_REGISTERED) stringResource(id = R.string.activate_button) else stringResource(
+                text = if (state.registrationState == RegistrationState.NOT_REGISTERED) stringResource(id = R.string.activate_button) else stringResource(
                     id = R.string.deactivate_button
                 ),
                 fontSize = 17.sp,
@@ -229,10 +224,30 @@ fun AccountView(
             )
         }
 
+        Text(
+            text = if (state.registrationMode == RegistrationMode.PER_CALL_CREDENTIALS) {
+                stringResource(id = R.string.note_activation_disabled)
+            } else {
+                ""
+            },
+            style = TextStyle(
+                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                fontSize = 12.sp,
+                color = colorResource(id = R.color.mts_text_grey)
+            ),
+            modifier = Modifier
+                .constrainAs(activateNote) {
+                    top.linkTo(activateButton.bottom, margin = 8.dp)
+                    start.linkTo(parent.start, margin = 16.dp)
+                    end.linkTo(parent.end, margin = 16.dp)
+                    width = Dimension.fillToConstraints
+                }
+        )
+
         // Token
         Text(
             modifier = Modifier.constrainAs(tokenHeader) {
-                top.linkTo(activateButton.bottom, margin = 24.dp)
+                top.linkTo(activateNote.bottom, margin = 24.dp)
                 start.linkTo(parent.start)
             },
             style = TextStyle(
@@ -246,7 +261,7 @@ fun AccountView(
         )
         OutlinedTextField(
             value = when {
-                token.isNotEmpty() -> token
+                state.token.isNotEmpty() -> state.token
                 else -> stringResource(id = R.string.default_token)
             },
             onValueChange = { },
@@ -261,7 +276,7 @@ fun AccountView(
                 }
                 .fillMaxWidth()
                 .clickable {
-                    if (token.isNotEmpty()) {
+                    if (state.token.isNotEmpty()) {
                         onEvent(AccountContract.Event.OnCopyButtonClicked)
                     }
                 },
@@ -279,4 +294,3 @@ fun AccountView(
 
     }
 }
-

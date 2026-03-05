@@ -7,6 +7,7 @@
     <string name="voip_registration_state_no_connection">No Connection</string>
     <string name="voip_registration_state_error">Error</string>
     <string name="activate_button">Activate</string>
+    <string name="note_activation_disabled">Account activation is not available in per-call credentials mode</string>
     <string name="title_activity_call">CallActivity</string>
     <string name="settings_password">Password</string>
     <string name="settings_hint_password">Enter password</string>

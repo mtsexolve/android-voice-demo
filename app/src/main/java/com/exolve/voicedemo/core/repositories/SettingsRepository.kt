@@ -6,6 +6,7 @@ import com.exolve.voicesdk.LogLevel
 import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.TelecomIntegrationMode
 import com.google.gson.Gson
+import java.lang.IllegalArgumentException
 
 class SettingsRepository(
     context: Context,
@@ -49,7 +50,11 @@ class SettingsRepository(
 
     fun getRegistrationMode(): RegistrationMode {
         val modeName = dataSource.getString(REGISTRATION_MODE_KEY, RegistrationMode.WHEN_ACTIVE.name)
-        return RegistrationMode.valueOf(modeName!!)
+        return try {
+            RegistrationMode.valueOf(modeName!!)
+        } catch (_: IllegalArgumentException) {
+            RegistrationMode.WHEN_ACTIVE
+        }
     }
 
     fun setDetectCallLocationEnabled(enabled: Boolean) {
