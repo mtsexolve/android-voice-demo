@@ -13,11 +13,11 @@ class Utils {
     companion object{
         val CALL_NUMBER_EXTRA = "CALL_NUMBER_EXTRA"
 
-        fun getDisplayName(context: Context, number: String): String {
+        fun getDisplayName(context: Context, number: String): String? {
             if (context.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                return number
+                return null
             }
-            var name = number
+            var name: String? = null
             val uri = Uri.withAppendedPath(
                 ContactsContract.CommonDataKinds.Phone.CONTENT_FILTER_URI,
                 Uri.encode("+$number")

@@ -19,7 +19,7 @@ import com.exolve.voicedemo.core.repositories.SettingsRepository
 import com.exolve.voicedemo.core.telecom.TelecomContract.RegistrationEvent
 import com.exolve.voicedemo.core.telecom.TelecomEvent
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
-import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
 import com.exolve.voicesdk.RegistrationState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -34,7 +34,6 @@ private const val ACCOUNT_VIEWMODEL = "AccountViewModel"
 class AccountViewModel(application: Application) :
     BaseViewModel<AccountContract.Event, AccountContract.State, AccountContract.Effect>(application) {
     private val accountRepository: SettingsRepository = SettingsRepository(context = application)
-    private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
     private var toast: Toast? = null
 
     init {
@@ -172,15 +171,19 @@ class AccountViewModel(application: Application) :
                 "activateAccount: username = ${uiState.value.number}"
             )
             if (accountRepository.isDetectLocationEnabled()) {
-                cancelPermissionRequestCallback = requestPermissions(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                    onRequestedResult = {
-                        telecomManager.activateAccount(
-                            Account(
-                                number = uiState.value.number, password = uiState.value.password,
-                            ),
-                        )
+                requestPermissions(
+                    listOf( Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                    { result ->
+                        when (result) {
+                            RequestPermissionsResult.GRANTED_ALL -> {
+                                telecomManager.activateAccount(
+                                    Account(
+                                        number = uiState.value.number, password = uiState.value.password,
+                                    ),
+                                )
+                            }
+                            else -> {}
+                        }
                     }
                 )
             } else {
@@ -241,6 +244,5 @@ class AccountViewModel(application: Application) :
     override fun onCleared() {
         super.onCleared()
         viewModelScope.coroutineContext.cancel()
-        cancelPermissionRequestCallback()
     }
 }

@@ -32,11 +32,6 @@ object PushProvider {
         Communicator.processVoipPushNotification(context, data)
     }
 
-    fun broadcastCallIntent(context: Context, intent: Intent) {
-        Log.d(PUSH_PROVIDER, "broadcastCallIntent: intent = ${intent.data}")
-        Communicator.broadcastCallIntent(context, intent)
-    }
-
     enum class PushType {
         FIREBASE,
         HMS,

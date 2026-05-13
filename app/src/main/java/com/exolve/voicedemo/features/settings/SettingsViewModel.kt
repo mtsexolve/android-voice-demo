@@ -43,6 +43,8 @@ class SettingsViewModel(application: Application) :
             logLevel = telecomManager.logLevel(),
             useEncryption = telecomManager.isEncryptionEnabled(),
             environment = telecomManager.currentEnvironment(),
+            notifyInForeground = telecomManager.isNotifyInForeground(),
+            customCallNotification = telecomManager.isCustomCallNotification(),
             needRestart = false
         )
     }
@@ -92,6 +94,22 @@ class SettingsViewModel(application: Application) :
                 telecomManager.setEncryptionEnabled(event.enabled)
                 setState { copy(
                     useEncryption = event.enabled,
+                    needRestart = true
+                )}
+            }
+
+            is SettingsContract.Event.OnNotifyInForegroundChanged -> {
+                telecomManager.setNotifyInForeground(event.enabled)
+                setState { copy(
+                    notifyInForeground = event.enabled,
+                    needRestart = true
+                )}
+            }
+
+            is SettingsContract.Event.OnCustomCallNotificationChanged -> {
+                telecomManager.setCustomCallNotification(event.enabled)
+                setState { copy(
+                    customCallNotification = event.enabled,
                     needRestart = true
                 )}
             }

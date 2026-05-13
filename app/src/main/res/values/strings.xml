@@ -53,6 +53,8 @@
     <string name="sip_traces">Enable SIP traces</string>
     <string name="log_level">Log level</string>
     <string name="use_encryption">Use encryption</string>
+    <string name="notify_in_foreground">Notify in foreground</string>
+    <string name="custom_call_notification">Custom call notification</string>
     <string name="environment">Environment</string>
     <string name="call_context">Call Context</string>
     <string name="restart_app">Restart application</string>

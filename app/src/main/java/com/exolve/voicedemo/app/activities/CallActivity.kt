@@ -15,18 +15,27 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.exolve.voicedemo.R
-import com.exolve.voicedemo.core.telecom.PushProvider
 import com.exolve.voicedemo.core.telecom.TelecomContract
 import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
@@ -36,55 +45,87 @@ import com.exolve.voicedemo.features.call.CallViewModel
 import com.exolve.voicedemo.features.call.OngoingCallScreen
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerViewModel
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+import com.exolve.voicesdk.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 private const val CALL_ACTIVITY = "CallActivity"
 
-class CallActivity : ComponentActivity() {
+class CallActivity : BaseActivity() {
     private lateinit var telecomManager: TelecomManager
 
     private val viewModel: CallViewModel by viewModels()
 
     private val dialerViewModel: DialerViewModel by viewModels()
 
+    private var callIntentFlow : MutableStateFlow<String> = MutableStateFlow("")
+    private val callIntentStateFlow = callIntentFlow.asStateFlow()
+
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             handleContactResult(result)
         }
 
-    private val contactsPermissionRequestLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.i(CALL_ACTIVITY, "contacts permission granted")
-            startActivityForGetContact()
-        } else {
-            Log.i(CALL_ACTIVITY, "contacts permission denied")
+    private fun processCallIntent(intent: Intent) {
+        intent.getStringExtra(NotificationIntents.EXTRA_CALL_ID)?.let {
+            when(intent.action) {
+                NotificationIntents.ACTION_ANSWER_CALL -> {
+                    viewModel.setEvent(CallContract.Event.OnAcceptCallButtonClicked(it))
+                    callIntentFlow.value = "Opened with accept notification button"
+                }
+                NotificationIntents.ACTION_RESUME_CALL -> {
+                    viewModel.setEvent(CallContract.Event.OnResumeButtonClicked(it))
+                    callIntentFlow.value = "Opened with resume notification button"
+                }
+                NotificationIntents.ACTION_FULLSCREEN_CALL_ACTIVITY -> {
+                    callIntentFlow.value = "Opened with notification fullscreen"
+                    Log.i(CALL_ACTIVITY, "Call notification fullscreen $it")
+                }
+                NotificationIntents.ACTION_CLICKED_CALL_NOTIFICATION -> {
+                    callIntentFlow.value = "Open with notification clicked"
+                    Log.i(CALL_ACTIVITY, "Call notification clicked $it")
+                }
+                else -> {}
+            }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        telecomManager.setCallActivityVisible(true)
+        lifecycleScope.launch {
+            delay(3.seconds)
+            callIntentFlow.value = ""
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        telecomManager.setCallActivityVisible(false)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bindViewModelForPermissions(viewModel)
+
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
         }
+
         telecomManager = TelecomManager.getInstance()
         if (telecomManager.getCalls().isEmpty()) {
             finish()
             return
         }
         configRequiredPermissions()
-        intent?.let {
-            Log.d(CALL_ACTIVITY, "Start with call accepting, intent = ${intent.data} action ${intent.action}")
-            //Handle Android 12 (API 31) trampoline restrictions
-            // https://developer.android.com/about/versions/12/behavior-changes-12#notification-trampolines
-            PushProvider.broadcastCallIntent(this, intent)
-        }
+        processCallIntent(intent)
         lifecycleScope.launch {
             viewModel.event.collect {
                 handleUiEvent(it)
@@ -127,6 +168,29 @@ class CallActivity : ComponentActivity() {
                                 onEvent = viewModel::setEvent,
                                 onDialerEvent = dialerViewModel::setEvent
                             )
+
+                            ConstraintLayout(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                val (textView) = createRefs()
+                                Text(
+                                    text = callIntentStateFlow.collectAsState().value,
+                                    modifier = Modifier
+                                        .padding(bottom = 5.dp)
+                                        .constrainAs(textView) {
+                                            bottom.linkTo(parent.bottom)
+                                            start.linkTo(parent.start)
+                                            end.linkTo(parent.end)
+                                        },
+                                    style = TextStyle(
+                                        fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                                        fontSize = 14.sp,
+                                        color = colorResource(
+                                            id = R.color.black
+                                        )
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
@@ -154,7 +218,21 @@ class CallActivity : ComponentActivity() {
                 finish()
             }
             is DialerContract.Event.OnContactsButtonClicked -> {
-                contactsPermissionRequestLauncher.launch(Manifest.permission.READ_CONTACTS)
+                requestPermissions(
+                    listOf(Manifest.permission.READ_CONTACTS),
+                    { result ->
+                        when (result) {
+                            RequestPermissionsResult.GRANTED_ALL -> {
+                                Log.i(CALL_ACTIVITY, "contacts permission granted")
+                                startActivityForGetContact()
+                            }
+                            RequestPermissionsResult.DENIED_ALL -> {
+                                Log.i(CALL_ACTIVITY, "contacts permission denied")
+                            }
+                            else -> {}
+                        }
+                    }
+                )
             }
         }
     }
@@ -162,10 +240,7 @@ class CallActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Log.d(CALL_ACTIVITY, "onNewIntent")
-
-        //Handle Android 12 (API 31) trampoline restrictions
-        // https://developer.android.com/about/versions/12/behavior-changes-12#notification-trampolines
-        PushProvider.broadcastCallIntent(this, intent)
+        processCallIntent(intent)
     }
 
     private fun startActivityForGetContact() {

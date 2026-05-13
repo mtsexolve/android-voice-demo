@@ -56,11 +56,6 @@ class TelecomContract {
             val isInConference: Boolean,
         ) : CallEvent(call)
 
-        data class OnCallUserActionRequired(
-            override val call: Call,
-            val pendingEvent: CallPendingEvent,
-        ) : CallEvent(call)
-
         data class OnCallConnectionLost(
             override val call: Call,
         ) : CallEvent(call)

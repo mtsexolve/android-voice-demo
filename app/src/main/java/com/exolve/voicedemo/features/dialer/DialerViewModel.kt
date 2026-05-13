@@ -11,7 +11,7 @@ import com.exolve.voicedemo.core.telecom.TelecomEvent
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
-import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
 import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.RegistrationState
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +26,6 @@ class DialerViewModel(application: Application) :
 
     private val settingsRepository: SettingsRepository = SettingsRepository(context = application)
     private var dialerToast = Toast.makeText(getApplication(), R.string.dialer_toast_activate, Toast.LENGTH_LONG)
-    private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
     init {
         viewModelScope.launch(Dispatchers.IO) {
             telecomManager.telecomEvents.collect {telecomEvent ->
@@ -74,15 +73,26 @@ class DialerViewModel(application: Application) :
             }
         }
         settingsRepository.setLastCallNumber(uiState.value.dialerText)
-        if (settingsRepository.isDetectLocationEnabled()) {
-            cancelPermissionRequestCallback = requestPermissions(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                onRequestedResult = { placeCall(uiState.value.dialerText) }
-            )
-        } else {
-            placeCall(uiState.value.dialerText)
+
+        val permissions = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            if (settingsRepository.isDetectLocationEnabled()) {
+               add(Manifest.permission.ACCESS_FINE_LOCATION)
+               add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
         }
+
+        requestPermissions(
+            permissions,
+            { result ->
+                when (result) {
+                    RequestPermissionsResult.GRANTED_ALL -> {
+                        placeCall(uiState.value.dialerText)
+                    }
+                    else -> {}
+                }
+            }
+        )
     }
 
     private fun removeDigits(onLongClicked: Boolean) {
@@ -111,7 +121,6 @@ class DialerViewModel(application: Application) :
     override fun onCleared() {
         super.onCleared()
         viewModelScope.coroutineContext.cancel()
-        cancelPermissionRequestCallback()
     }
 
 }

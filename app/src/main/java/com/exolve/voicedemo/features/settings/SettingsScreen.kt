@@ -60,6 +60,8 @@ fun SettingsScreen(
         sipTraces = state.sipTraces,
         logLevel = state.logLevel,
         useEncryption = state.useEncryption,
+        notifyInForeground = state.notifyInForeground,
+        preferredCallStyleNotification = state.customCallNotification,
         callContext = state.callContext,
         needRestart = state.needRestart
     )
@@ -79,6 +81,8 @@ fun SettingsContent(
     sipTraces: Boolean,
     logLevel: LogLevel,
     useEncryption: Boolean,
+    notifyInForeground: Boolean,
+    preferredCallStyleNotification: Boolean,
     callContext: String,
     needRestart: Boolean,
     modifier: Modifier,
@@ -107,6 +111,8 @@ fun SettingsContent(
                 OptionSipTraces(onEvent, sipTraces)
                 OptionLogLevel(onEvent, logLevel)
                 OptionEncryption(onEvent, useEncryption)
+                OptionNotifyInForeground(onEvent, notifyInForeground)
+                OptionPreferredCallStyleNotification(onEvent, preferredCallStyleNotification)
                 OptionEnvironment(onEvent)
                 Spacer(modifier = Modifier.height(16.dp))
                 OptionCallContext(onEvent, callContext)
@@ -424,6 +430,74 @@ fun OptionEncryption(
             checked = useEncryption,
             onCheckedChange = {
                 onEvent(SettingsContract.Event.OnUseEncryptionChanged(it))
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colorResource(id = R.color.mts_red),
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun OptionNotifyInForeground(
+    onEvent: (event: SettingsContract.Event) -> Unit,
+    notifyInForeground: Boolean
+) {
+    Row( verticalAlignment = Alignment.CenterVertically )
+    {
+        Text(
+            style = TextStyle(
+                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                fontSize = 14.sp,
+                color = colorResource(
+                    id = R.color.mts_text_grey
+                )
+            ),
+            text = stringResource(id = R.string.notify_in_foreground)
+        )
+
+        Switch(
+            modifier = Modifier
+                .semantics { testTagsAsResourceId = true }
+                .testTag("button_settings_enable_encryption_switch"),
+            checked = notifyInForeground,
+            onCheckedChange = {
+                onEvent(SettingsContract.Event.OnNotifyInForegroundChanged(it))
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colorResource(id = R.color.mts_red),
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun OptionPreferredCallStyleNotification(
+    onEvent: (event: SettingsContract.Event) -> Unit,
+    preferredCallStyleNotification: Boolean
+) {
+    Row( verticalAlignment = Alignment.CenterVertically )
+    {
+        Text(
+            style = TextStyle(
+                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                fontSize = 14.sp,
+                color = colorResource(
+                    id = R.color.mts_text_grey
+                )
+            ),
+            text = stringResource(id = R.string.custom_call_notification)
+        )
+
+        Switch(
+            modifier = Modifier
+                .semantics { testTagsAsResourceId = true }
+                .testTag("button_settings_enable_encryption_switch"),
+            checked = preferredCallStyleNotification,
+            onCheckedChange = {
+                onEvent(SettingsContract.Event.OnCustomCallNotificationChanged(it))
             },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = colorResource(id = R.color.mts_red),

@@ -22,6 +22,8 @@ class SettingsContract {
         val logLevel: LogLevel, // need restart
         val useEncryption: Boolean, // need restart
         val environment: String, // need restart
+        val notifyInForeground: Boolean, // need restart
+        val customCallNotification: Boolean, // need restart
 
         val needRestart: Boolean
     ) : UiState
@@ -39,6 +41,8 @@ class SettingsContract {
         @Immutable data class OnUseEncryptionChanged(val enabled: Boolean) : Event()
         @Immutable data class OnEnvironmentChanged(val environment: String) : Event()
         @Immutable data class OnCallContextChanged(val callContext: String) : Event()
+        @Immutable data class OnNotifyInForegroundChanged(val enabled: Boolean) : Event()
+        @Immutable data class OnCustomCallNotificationChanged(val enabled: Boolean) : Event()
         @Immutable data object Restart : Event()
     }
 

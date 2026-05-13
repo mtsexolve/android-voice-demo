@@ -58,10 +58,6 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
-        <activity
-                android:name=".core.utils.PermissionRequestActivity"
-                android:theme="@style/Theme.AppCompat.Translucent"
-            />
 
         <provider
             android:name="androidx.core.content.FileProvider"

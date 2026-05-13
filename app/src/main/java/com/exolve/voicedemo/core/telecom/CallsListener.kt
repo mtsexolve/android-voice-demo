@@ -120,37 +120,6 @@ class CallsListener(
         }
     }
 
-    override fun callUserActionRequired(
-        call: Call?,
-        pendingEvent: CallPendingEvent?,
-        action: CallUserAction?
-    ) {
-        if (call != null && pendingEvent != null && action == CallUserAction.NEEDS_LOCATION_ACCESS) {
-            CoroutineScope(Dispatchers.IO).launch {
-                telecomManagerEvent.emit(CallEvent.OnCallUserActionRequired(call, pendingEvent))
-            }
-        }
-
-        val toastMessage = when (action) {
-            CallUserAction.NEEDS_LOCATION_ACCESS -> "No location access for " + if (pendingEvent == CallPendingEvent.ACCEPT_CALL) {
-                "accept"
-            } else {
-                "answering"
-            } + " call."
-
-            CallUserAction.ENABLE_LOCATION_PROVIDER -> "Disabled access to geolocation in notification panel"
-            null -> "Call location error: action is null"
-        }
-        CoroutineScope(Dispatchers.Main).launch {
-            Toast.makeText(
-                context,
-                toastMessage,
-                Toast.LENGTH_SHORT
-            )
-                .show()
-        }
-    }
-
     override fun callInConference(p0: Call?, p1: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             p0?.let {

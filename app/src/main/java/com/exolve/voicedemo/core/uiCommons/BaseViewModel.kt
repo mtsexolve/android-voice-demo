@@ -11,17 +11,21 @@ import com.exolve.voicedemo.core.telecom.TelecomManager
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEffect
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiState
-import com.exolve.voicedemo.core.utils.PermissionRequester
-import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
-import com.exolve.voicedemo.core.utils.PermissionState
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+import com.exolve.voicedemo.core.permissions.PermissionRequest
+import com.exolve.voicedemo.core.permissions.PermissionState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
+
 
 abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect>(application: Application) : AndroidViewModel(
     application
 ) {
-    enum class PermissionsRequestedResult { GRANTED_ALL, GRANTED_ANY, DENIED_ALL }
+    private val _permissionRequests = Channel<PermissionRequest>(Channel.BUFFERED)
+
+    val permissionRequests: Flow<PermissionRequest> = _permissionRequests.receiveAsFlow()
 
     protected val telecomManager: TelecomManager = TelecomManager.getInstance()
     private val initState: State by lazy { initializeState() }
@@ -69,24 +73,28 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
 
     abstract suspend fun handleTelecomEvent(event: TelecomEvent)
 
-
-    protected fun requestPermissions(vararg permissions: String, onRequestedResult: (state: PermissionsRequestedResult) -> Unit = {}): CancelPermissionRequestCallback {
+    protected fun requestPermissions(
+        permissions: List<String>,
+        onResult: (RequestPermissionsResult) -> Unit,
+    ) {
         if(permissions.all { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
-            onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)
-            return {}
+            onResult(RequestPermissionsResult.GRANTED_ALL)
         } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
-            onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
-            return {}
+            onResult(RequestPermissionsResult.GRANTED_ANY)
         } else {
-            return PermissionRequester.requestPermissions(getApplication(), *permissions) { permissionResults ->
-                if (permissionResults.all{it.state == PermissionState.GRANTED}) {
-                    onRequestedResult(PermissionsRequestedResult.GRANTED_ALL)
-                } else if (permissionResults.any{it.state == PermissionState.GRANTED}) {
-                    onRequestedResult(PermissionsRequestedResult.GRANTED_ANY)
+            viewModelScope.launch {
+                val deferred = CompletableDeferred<List<PermissionState>>()
+                _permissionRequests.send(PermissionRequest(permissions, deferred))
+
+                val resultList = deferred.await()
+
+                val granted = resultList.count { it is PermissionState.Granted }
+                val requestPermissionResult = when {
+                    granted == permissions.size -> RequestPermissionsResult.GRANTED_ALL
+                    granted == 0 -> RequestPermissionsResult.DENIED_ALL
+                    else -> RequestPermissionsResult.GRANTED_ANY
                 }
-                else {
-                    onRequestedResult(PermissionsRequestedResult.DENIED_ALL)
-                }
+                onResult(requestPermissionResult)
             }
         }
     }

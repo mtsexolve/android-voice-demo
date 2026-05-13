@@ -3,6 +3,7 @@ package com.exolve.voicedemo.features.call
 import android.Manifest
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.viewModelScope
 import com.exolve.voicedemo.core.telecom.TelecomContract
 import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
@@ -12,11 +13,10 @@ import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.features.call.CallContract.*
 import com.exolve.voicedemo.features.dialer.DialerContract
-import com.exolve.voicedemo.core.utils.CancelPermissionRequestCallback
 import com.exolve.voicedemo.core.utils.OnDropData
 import com.exolve.voicedemo.core.utils.Utils
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
 import com.exolve.voicesdk.CallState
-import com.exolve.voicesdk.CallPendingEvent
 import com.exolve.voicesdk.Call
 import com.exolve.voicesdk.AudioRoute
 import kotlinx.coroutines.launch
@@ -29,8 +29,6 @@ private const val CALL_VIEW_MODEL = "CallViewModel"
 @Immutable
 class CallViewModel(application: Application) :
     BaseViewModel<UiEvent, State, Effect>(application) {
-
-    private var cancelPermissionRequestCallback: CancelPermissionRequestCallback = {}
 
     private var isDurationTimerRunning = true
 
@@ -94,7 +92,7 @@ class CallViewModel(application: Application) :
         isCallOutgoing = call.isOutCall,
         number = call.number,
         formattedNumber = call.formattedNumber,
-        displayName = Utils.getDisplayName((getApplication() as Application).applicationContext, call.number),
+        displayName = Utils.getDisplayName((getApplication() as Application).applicationContext, call.number)?:call.formattedNumber,
         callsId = call.id,
         status = call.state,
         isInConference = call.inConference(),
@@ -136,10 +134,24 @@ class CallViewModel(application: Application) :
             is Event.OnBackToControlScreenClicked -> { setState { copy(isAddNewCallPressed = false) } }
             is Event.OnNewCallButtonClicked -> { setState { copy(isAddNewCallPressed = true) } }
             is Event.OnAcceptCallButtonClicked -> {
-                setState { copy(
-                    currentCallId = event.callsId
-                ) }
-                acceptCall(event.callsId)
+                requestPermissions(
+                    listOf(Manifest.permission.RECORD_AUDIO),
+                    { result ->
+                        when (result) {
+                            RequestPermissionsResult.GRANTED_ALL -> {
+                                setState { copy(
+                                    currentCallId = event.callsId
+                                ) }
+                                telecomManager.acceptCall(callId = event.callsId)
+                            }
+                            else -> {
+                                Toast.makeText((getApplication() as Application).applicationContext, "No microphone access! Cannot accept the call!",
+                                    Toast.LENGTH_SHORT).show()
+                                telecomManager.terminateCall(callId = event.callsId)
+                            }
+                        }
+                    }
+                )
             }
             is DialerContract.Event.OnDigitButtonClicked -> {
                 updateTextFieldState(event.index)
@@ -201,20 +213,6 @@ class CallViewModel(application: Application) :
         if (event is CallEvent) {
             Log.d(CALL_VIEW_MODEL, "CallViewModel: handleTelecomEvent: $event ${event.call.id}")
             updateUiListOfCalls(event.call)
-            if (event is CallEvent.OnCallUserActionRequired){
-                when (event.pendingEvent) {
-                    CallPendingEvent.ACCEPT_CALL -> {
-                        cancelPermissionRequestCallback = requestPermissions(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                            onRequestedResult = {
-                                acceptCall(event.call.id)
-                            }
-                        )
-                    }
-                    else -> Log.d(CALL_VIEW_MODEL, "CallViewModel: no match pendingEvent")
-                }
-            }
         } else {
             handleHardwareEvent(event)
         }
@@ -253,10 +251,6 @@ class CallViewModel(application: Application) :
                 }
             }
         }
-    }
-
-    private fun acceptCall(callsId: String) {
-        telecomManager.acceptCall(callId = callsId)
     }
 
     private fun updateTextFieldState(value: String) {
@@ -391,7 +385,6 @@ class CallViewModel(application: Application) :
 
     override fun onCleared() {
         super.onCleared()
-        cancelPermissionRequestCallback()
         isDurationTimerRunning = false
     }
 }

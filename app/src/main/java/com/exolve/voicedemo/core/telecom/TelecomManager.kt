@@ -39,32 +39,61 @@ class TelecomManager(private var context: Application) {
     private val _contactNameResolver = ContactNameResolverExt { phoneNumber, extraContext, resultHandler ->
         Log.d(TELECOM_MANAGER, "Contact resolver lookup: phone: $phoneNumber, context: $extraContext")
         CoroutineScope(Dispatchers.Main).launch {
-            var name = Utils.getDisplayName(context, phoneNumber)
-            if (!TextUtils.isEmpty(extraContext)) {
-                name += " with context: $extraContext"
+            Utils.getDisplayName(context, phoneNumber).let {
+                var name = it
+                if (!TextUtils.isEmpty(extraContext)) {
+                    name += " with context: $extraContext"
+                }
+                resultHandler!!.accept(name)
             }
-            resultHandler!!.accept(name)
         }
     }
+
+    private val _callNotificationCustomizer =
+        CallNotificationCustomizer { callData, notificationBuilder ->
+            notificationBuilder.setContentText(callData.contactName)
+            if (callData.viewState.equals(CallNotificationContent.ViewState.CALL_INCOMING)) {
+                notificationBuilder.setContentTitle("Incoming call")
+                notificationBuilder.addAction(0, "Reject", callData.endCallIntent)
+                    .addAction(0, "Answer", callData.answerCallIntent)
+            } else if (callData.viewState.equals(CallNotificationContent.ViewState.CALL_PAUSED)) {
+                notificationBuilder.setContentTitle("Paused call")
+                notificationBuilder.addAction(0, "End", callData.endCallIntent)
+                    .addAction(0, "Resume", callData.resumeCallIntent)
+            } else {
+                notificationBuilder.setContentTitle("Ongoing call")
+                notificationBuilder.addAction(0, "End", callData.endCallIntent)
+            }
+        }
 
     private val configuration: Configuration = Configuration
         .builder(context)
         .logConfiguration(LogConfiguration.builder().logLevel(logLevel()).build())
         .useSecureConnection(isEncryptionEnabled())
         .enableSipTrace(isSipTracesEnabled())
+        .enableStun(isStunNeeded())
         .enableNotifications(true)
         .enableRingtone(true)
         .enableDetectLocation(SettingsRepository(context).isDetectLocationEnabled())
         .telecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
-        .notificationConfiguration(
-            NotificationConfiguration().apply {
-                callActivityClass = CallActivity::class.java.canonicalName
-                appActivityClass = MainActivity::class.java.canonicalName
-                setContactNameResolver(_contactNameResolver)
-                notifyInForeground = true
-            }
-        )
+        .notificationConfiguration(getNotificationConfiguration())
         .build()
+
+    private fun getNotificationConfiguration(): NotificationConfiguration {
+        val conf = NotificationConfiguration().apply {
+            callActivityClass = CallActivity::class.java.canonicalName
+            appActivityClass = MainActivity::class.java.canonicalName
+            setContactNameResolver(_contactNameResolver)
+            notifyInForeground = SettingsRepository(context).isNotifyInForeground()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                preferredCallStyleNotifications = true
+            }
+            if (SettingsRepository(context).isCustomCallNotification()) {
+                setCallNotificationCustomizer(_callNotificationCustomizer)
+            }
+        }
+        return conf
+    }
 
     private val communicator: Communicator
 
@@ -91,7 +120,7 @@ class TelecomManager(private var context: Application) {
                         SettingsRepository(context).getTelecomManagerMode() == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE
                     if (isMissed && !isSystemManaged) {
                         // In SYSTEM_MANAGED_SERVICE mode a notification will be shown by the Phone app
-                        showMissedCallNotification(telecomEvent.call.number)
+                        showMissedCallNotification(telecomEvent.call)
                     }
                 }
             }
@@ -126,10 +155,10 @@ class TelecomManager(private var context: Application) {
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun showMissedCallNotification(number: String) {
+    private fun showMissedCallNotification(call: Call) {
         val notification = Notification.Builder(context, missedCallsChannelId)
             .setSmallIcon(android.R.drawable.sym_call_missed)
-            .setContentText(context.getString(R.string.missed_call_notification_text, Utils.getDisplayName(context, number)))
+            .setContentText(context.getString(R.string.missed_call_notification_text, Utils.getDisplayName(context, call.number)?:call.formattedNumber))
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setCategory(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Notification.CATEGORY_MISSED_CALL else Notification.CATEGORY_CALL)
             .setContentIntent(
@@ -139,7 +168,7 @@ class TelecomManager(private var context: Application) {
                     Intent(context, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     }
-                    .putExtra(Utils.CALL_NUMBER_EXTRA, number),
+                    .putExtra(Utils.CALL_NUMBER_EXTRA, call.number),
                     PendingIntent.FLAG_IMMUTABLE
                 )
             )
@@ -186,7 +215,6 @@ class TelecomManager(private var context: Application) {
     }
 
     fun call(number: String) {
-        telecomManagerState.value.calls.takeIf { it.isNotEmpty() }?.forEach { it.hold() }
         if (registrationMode() == RegistrationMode.PER_CALL_CREDENTIALS) {
             val account = SettingsRepository(context).fetchAccountDetails()
             account?.let {
@@ -280,6 +308,11 @@ class TelecomManager(private var context: Application) {
         communicator.setApplicationState(ApplicationState.FOREGROUND)
     }
 
+    fun setCallActivityVisible(isVisible: Boolean) {
+        Log.d(TELECOM_MANAGER, "setCallActivityVisible: $isVisible")
+        communicator.setCallActivityVisible(isVisible)
+    }
+
     fun registrationMode(): RegistrationMode {
         return communicator.configurationManager.registrationMode
     }
@@ -320,6 +353,12 @@ class TelecomManager(private var context: Application) {
         return SettingsRepository(context).isSipTracesEnabled()
     }
 
+    fun isStunNeeded(): Boolean {
+        return SettingsRepository(context).getEnvironment()?.let { env ->
+            "webrtc|dtls".toRegex(RegexOption.IGNORE_CASE).find(env) != null
+        } ?: false
+    }
+
     fun setSipTracesEnabled(enabled: Boolean) {
         SettingsRepository(context).setSipTracesEnabled(enabled)
     }
@@ -338,6 +377,22 @@ class TelecomManager(private var context: Application) {
 
     fun setEncryptionEnabled(enabled: Boolean) {
         SettingsRepository(context).setEncryptionEnabled(enabled)
+    }
+
+    fun isNotifyInForeground(): Boolean {
+        return SettingsRepository(context).isNotifyInForeground()
+    }
+
+    fun setNotifyInForeground(enabled: Boolean) {
+        SettingsRepository(context).setNotifyInForeground(enabled)
+    }
+
+    fun isCustomCallNotification(): Boolean {
+        return SettingsRepository(context).isCustomCallNotification()
+    }
+
+    fun setCustomCallNotification(enabled: Boolean) {
+        SettingsRepository(context).setCustomCallNotification(enabled)
     }
 
     fun currentEnvironment(): String {

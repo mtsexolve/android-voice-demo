@@ -46,31 +46,18 @@ import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerScreen
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.features.settings.*
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val MAIN_ACTIVITY = "MainActivity"
 
-class MainActivity : ComponentActivity() {
+class MainActivity : BaseActivity() {
     private val dialerViewModel: DialerViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        var granted = true
-        for (permission in permissions) {
-            granted = granted && permission.value
-        }
-
-        if (granted) {
-            Log.i(MAIN_ACTIVITY, "permission granted")
-        } else {
-            Log.i(MAIN_ACTIVITY, "permission denied")
-        }
-    }
 
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -85,17 +72,6 @@ class MainActivity : ComponentActivity() {
             MAIN_ACTIVITY, "startActivity for get contact with intent $intent"
         )
         getContactResult.launch(intent)
-    }
-
-    private val contactsPermissionRequestLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.i(MAIN_ACTIVITY, "contacts permission granted")
-            startActivityForGetContact()
-        } else {
-            Log.i(MAIN_ACTIVITY, "contacts permission denied")
-        }
     }
 
     private fun handleContactResult(contactResult: ActivityResult) {
@@ -125,11 +101,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bindViewModelForPermissions(dialerViewModel)
+        bindViewModelForPermissions(accountViewModel)
+        bindViewModelForPermissions(settingsViewModel)
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
         }
-        requestPermissions()
+        requestOnCreatePermissions()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             requestFullscreenIntentPermission()
         }
@@ -170,8 +149,8 @@ class MainActivity : ComponentActivity() {
         accountViewModel.handleDeepLink(intent.data)
     }
 
-    private fun requestPermissions() {
-        var permissions = arrayOf(
+    private fun requestOnCreatePermissions() {
+        var permissions = listOf(
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.CALL_PHONE,
             Manifest.permission.RECORD_AUDIO,
@@ -183,7 +162,18 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions += Manifest.permission.POST_NOTIFICATIONS
         }
-        requestPermissionLauncher.launch(permissions)
+
+        requestPermissions(
+            permissions,
+            { result ->
+                when (result) {
+                    RequestPermissionsResult.GRANTED_ALL -> {
+                        Log.i(MAIN_ACTIVITY, "onCreate permissions granted")
+                    }
+                    else -> {}
+                }
+            }
+        )
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // API >= 34
@@ -218,7 +208,21 @@ class MainActivity : ComponentActivity() {
             is SettingsContract.Event.OnBackToCallActivityClicked -> backToCallActivity()
             is DialerContract.Event.OnBackToCallActivityClicked -> backToCallActivity()
             is DialerContract.Event.OnContactsButtonClicked -> {
-                contactsPermissionRequestLauncher.launch(Manifest.permission.READ_CONTACTS)
+                requestPermissions(
+                    listOf(Manifest.permission.READ_CONTACTS),
+                    { result ->
+                        when (result) {
+                            RequestPermissionsResult.GRANTED_ALL -> {
+                                Log.i(MAIN_ACTIVITY, "contacts permission granted")
+                                startActivityForGetContact()
+                            }
+                            RequestPermissionsResult.DENIED_ALL -> {
+                                Log.i(MAIN_ACTIVITY, "contacts permission denied")
+                            }
+                            else -> {}
+                        }
+                    }
+                )
             }
         }
     }

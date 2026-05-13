@@ -22,6 +22,8 @@ class SettingsRepository(
     private val LOG_LEVEL = "LOG_LEVEL"
     private val ENCRYPTION_ENABLED = "ENCRYPTION_ENABLED"
     private val ENVIRONMENT = "ENVIRONMENT"
+    private val FOREGROUND_NOTIFY = "FOREGROUND_NOTIFY"
+    private val CUSTOM_CALL_NOTIFICATION = "CUSTOM_CALL_NOTIFICATION"
 
     private val dataSource = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     private val editor = dataSource.edit()
@@ -132,5 +134,26 @@ class SettingsRepository(
             .putString(ENVIRONMENT, environment)
             .apply()
     }
+
+    fun isNotifyInForeground(): Boolean {
+        return dataSource.getBoolean(FOREGROUND_NOTIFY, true)
+    }
+
+    fun setNotifyInForeground(enabled: Boolean) {
+        editor
+            .putBoolean(FOREGROUND_NOTIFY, enabled)
+            .apply()
+    }
+
+    fun isCustomCallNotification(): Boolean {
+        return dataSource.getBoolean(CUSTOM_CALL_NOTIFICATION, true)
+    }
+
+    fun setCustomCallNotification(enabled: Boolean) {
+        editor
+            .putBoolean(CUSTOM_CALL_NOTIFICATION, enabled)
+            .apply()
+    }
+
 
 }
