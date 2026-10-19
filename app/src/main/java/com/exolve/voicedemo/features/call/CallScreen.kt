@@ -22,6 +22,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.*
 import androidx.compose.ui.semantics.semantics
@@ -69,7 +71,7 @@ fun OngoingCallScreen(
                 ) = createRefs()
 
             Box(
-                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.margin_horizontal_big))
+                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.margin_horizontal_small))
                     .constrainAs(callsInformationPanel) {
                         top.linkTo(parent.top)
                         bottom.linkTo(controlPanel.top)
@@ -625,6 +627,7 @@ fun CallLineItem(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
+                val showConferenceButton = hasConference && (conferenceSize < 5)
                 if (item.isActive()) {
                     Text(
                         text = formatDuration(item.duration),
@@ -638,8 +641,10 @@ fun CallLineItem(
                     // On Hold
                     item.status == CallState.ON_HOLD -> {
                         val newColor = colorResource(id = R.color.mts_bg_grey)
-                        if (hasConference && (conferenceSize < 5)) ButtonAddToConference(onEvent = onEvent, item = item)
-                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
+                        if (showConferenceButton) {
+                            ButtonAddToConference(onEvent = onEvent, item = item)
+                        }
+                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item, showLabel = !showConferenceButton)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnResumeButtonClicked(item.callsId)) },
                             modifier = Modifier
@@ -660,15 +665,17 @@ fun CallLineItem(
                                 tint = colorResource(id = R.color.call_card_button_accept_mts_green),
                                 modifier = Modifier.size(20.dp),
                             )
-                            Text(
-                                text = stringResource(id = R.string.calls_card_resume_call),
-                                Modifier.padding(horizontal = 8.dp),
-                                style = TextStyle(
-                                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
-                                    color = colorResource(id = R.color.mts_text_grey),
-                                    fontSize = 14.sp
+                            if (!showConferenceButton) {
+                                Text(
+                                    text = stringResource(id = R.string.calls_card_resume_call),
+                                    Modifier.padding(horizontal = 8.dp),
+                                    style = TextStyle(
+                                        fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                                        color = colorResource(id = R.color.mts_text_grey),
+                                        fontSize = 14.sp
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                     // Incoming call
@@ -709,12 +716,15 @@ fun CallLineItem(
                             )
 
                         }
-                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
+                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item, showLabel = !showConferenceButton)
                     }
                     // Ongoing call, resumed
                     (item.status == CallState.CONNECTED) -> {
                         val newColor = colorResource(id = R.color.mts_bg_grey)
-                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item)
+                        if (showConferenceButton) {
+                            ButtonAddToConference(onEvent = onEvent, item = item)
+                        }
+                        ButtonTerminateSelectedRegularCall(onEvent = onEvent, item = item, showLabel = !showConferenceButton)
                         OutlinedButton(
                             onClick = { onEvent(CallContract.Event.OnHoldButtonClicked(item.callsId)) },
                             //shape = CircleShape,
@@ -737,18 +747,20 @@ fun CallLineItem(
                                 modifier = Modifier.size(22.dp),
 
                             )
-                            Text(
-                                text = "Hold", Modifier.padding(horizontal = 8.dp),
-                                style = TextStyle(
-                                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
-                                    color = colorResource(id = R.color.mts_text_grey),
-                                    fontSize = 14.sp
+                            if (!showConferenceButton) {
+                                Text(
+                                    text = stringResource(id = R.string.calls_card_resume_call), Modifier.padding(horizontal = 8.dp),
+                                    style = TextStyle(
+                                        fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                                        color = colorResource(id = R.color.mts_text_grey),
+                                        fontSize = 14.sp
+                                    )
                                 )
-                            )
+                            }
 
                         }
                     }
-                    else -> ButtonTerminateSelectedRegularCall(onEvent, item)
+                    else -> ButtonTerminateSelectedRegularCall(onEvent, item, showLabel = !showConferenceButton)
                 }
             }
         }
@@ -762,6 +774,7 @@ fun ConferenceLineItem(
     onEvent: (event: UiEvent) -> Unit,
     item: CallItemState
 ) {
+    val width = with(LocalDensity.current) {LocalConfiguration.current.screenWidthDp.dp}
     val color = colorResource(id = R.color.mts_bg_grey)
     Card(
         colors = CardColors(
@@ -770,13 +783,16 @@ fun ConferenceLineItem(
             disabledContainerColor = color,
             disabledContentColor = color
         ),
-        modifier = modifier,
+        modifier = modifier
+            .width(width / 2),
         shape = RoundedCornerShape(16.dp),
     ) {
         colorResource(id = R.color.mts_bg_grey)//if (!item.isInConference) colorResource(id = R.color.mts_bg_grey) else colorResource(id = R.color.mts_text_grey)
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp)) {
             Text(
                 item.getDisplayPresentation(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .semantics { testTagsAsResourceId = true }
                     .testTag("text_view_callscreen_list_item_number_${item.indexForUiTest}")
@@ -797,7 +813,8 @@ fun ConferenceLineItem(
 @Composable
 private fun ButtonTerminateSelectedRegularCall(
     onEvent: (event: UiEvent) -> Unit,
-    item: CallItemState
+    item: CallItemState,
+    showLabel: Boolean
 ) {
     val color = colorResource(id = R.color.mts_bg_grey)//if (!item.isInConference) colorResource(id = R.color.mts_bg_grey) else colorResource(id = R.color.mts_text_grey)
     OutlinedButton(
@@ -822,14 +839,16 @@ private fun ButtonTerminateSelectedRegularCall(
             tint = colorResource(id = R.color.mts_red),
             modifier = Modifier.size(20.dp)
         )
-        Text(
-            text = "Terminate", Modifier.padding(horizontal = 8.dp),
-            style = TextStyle(
-                fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
-                color = colorResource(id = R.color.mts_text_grey),
-                fontSize = 14.sp
+        if (showLabel) {
+            Text(
+                text =  stringResource(id = R.string.calls_card_terminate_call), Modifier.padding(horizontal = 8.dp),
+                style = TextStyle(
+                    fontFamily = FontFamily(Font(R.font.mtscompact_regular)),
+                    color = colorResource(id = R.color.mts_text_grey),
+                    fontSize = 14.sp
+                )
             )
-        )
+        }
     }
 }
 @OptIn(ExperimentalComposeUiApi::class)
@@ -1041,7 +1060,7 @@ private fun ButtonTerminate(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         OutlinedButton(
-            onClick = { onEvent(CallContract.Event.OnTerminateAllButtonClicked) },
+            onClick = { onEvent(CallContract.Event.OnTerminateCallButtonClicked) },
             Modifier
                 .semantics { testTagsAsResourceId = true }
                 .testTag("button_callscreen_terminate_all")

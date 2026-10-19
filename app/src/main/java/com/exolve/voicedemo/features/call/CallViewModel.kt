@@ -108,7 +108,7 @@ class CallViewModel(application: Application) :
     override fun handleUiEvent(event: UiEvent) {
         when (event) {
             is Event.OnTerminateCurrentButtonClicked -> { terminateSelectedCall(event.callsId) }
-            is Event.OnTerminateAllButtonClicked -> { terminateAllCalls() }
+            is Event.OnTerminateCallButtonClicked -> { terminateActiveCallOrConference() }
             is Event.OnResumeButtonClicked -> {
                 setState { copy(
                     currentCallId = event.callsId,
@@ -134,24 +134,9 @@ class CallViewModel(application: Application) :
             is Event.OnBackToControlScreenClicked -> { setState { copy(isAddNewCallPressed = false) } }
             is Event.OnNewCallButtonClicked -> { setState { copy(isAddNewCallPressed = true) } }
             is Event.OnAcceptCallButtonClicked -> {
-                requestPermissions(
-                    listOf(Manifest.permission.RECORD_AUDIO),
-                    { result ->
-                        when (result) {
-                            RequestPermissionsResult.GRANTED_ALL -> {
-                                setState { copy(
-                                    currentCallId = event.callsId
-                                ) }
-                                telecomManager.acceptCall(callId = event.callsId)
-                            }
-                            else -> {
-                                Toast.makeText((getApplication() as Application).applicationContext, "No microphone access! Cannot accept the call!",
-                                    Toast.LENGTH_SHORT).show()
-                                telecomManager.terminateCall(callId = event.callsId)
-                            }
-                        }
-                    }
-                )
+                requestPermissions(listOf(Manifest.permission.RECORD_AUDIO)) {
+                    telecomManager.acceptCall(callId = event.callsId)
+                }
             }
             is DialerContract.Event.OnDigitButtonClicked -> {
                 updateTextFieldState(event.index)
@@ -186,19 +171,20 @@ class CallViewModel(application: Application) :
     private fun updateUiListOfCalls(call: Call) {
         val hasCallInUiList = uiState.value.calls.find { it.callsId == call.id } != null
         val newUiListOfCalls = uiState.value.calls.toMutableList()
+        val callEnded = call.state == CallState.DISCONNECTED || call.state == CallState.ERROR
         when {
-            hasCallInUiList && call.state != CallState.DISCONNECTED -> {
+            hasCallInUiList && !callEnded -> {
                 Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list, hasCallInUiList && !isDisconnected  ")
                 newUiListOfCalls.apply {
                     val indexOfCall = this.indexOf(this.find { uiCall -> uiCall.callsId == call.id })
                     this[indexOfCall] = configureItemListStateObject(call = call, list = newUiListOfCalls)
                 }
             }
-            !hasCallInUiList && call.state != CallState.DISCONNECTED -> {
+            !hasCallInUiList && !callEnded -> {
                 Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list,  !hasCallInUiList && !isDisconnected ")
                 newUiListOfCalls.add(configureItemListStateObject(call = call, list = newUiListOfCalls))
             }
-            hasCallInUiList && call.state == CallState.DISCONNECTED -> {
+            hasCallInUiList && callEnded -> {
                 Log.d(CALL_VIEW_MODEL, "CallViewModel: upd list,  hasCallInUiList && isDisconnected")
                 newUiListOfCalls.apply {
                     this.removeAt(this.indexOf(this.find { uiCall -> uiCall.callsId == call.id }))
@@ -374,11 +360,23 @@ class CallViewModel(application: Application) :
         }
     }
 
-    private fun terminateAllCalls() {
+    private fun terminateActiveCallOrConference() {
         viewModelScope.launch {
-            uiState.value.calls.forEach {
-                Log.d(CALL_VIEW_MODEL, "CallViewModel: uiEvent terminate all, ${it.callsId}")
-                telecomManager.terminateCall(it.callsId)
+            var alreadyTerminated = false
+            if (uiState.value.hasConference ) {
+                val calls = uiState.value.calls.filter { !it.isInConference && it.isActive() }
+                if (calls.isNotEmpty()) {
+                    val callsId = calls.first().callsId
+                    Log.d(CALL_VIEW_MODEL, "CallViewModel: uiEvent terminate, ${callsId}")
+                    telecomManager.terminateCall(callId = callsId)
+                    alreadyTerminated = true
+                }
+            }
+            if (!alreadyTerminated) {
+                uiState.value.calls.forEach {
+                    Log.d(CALL_VIEW_MODEL, "CallViewModel: uiEvent terminate all, ${it.callsId}")
+                    telecomManager.terminateCall(it.callsId)
+                }
             }
         }
     }

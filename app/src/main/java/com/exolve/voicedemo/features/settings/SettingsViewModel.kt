@@ -1,16 +1,24 @@
 package com.exolve.voicedemo.features.settings
 
 import android.app.Application
+import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
+import com.exolve.voicedemo.R
 import com.exolve.voicedemo.core.telecom.TelecomEvent
+import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+import com.exolve.voicedemo.core.repositories.SettingsRepository
+import com.exolve.voicesdk.TelecomIntegrationMode
 import com.exolve.voicedemo.core.uiCommons.BaseViewModel
 import com.exolve.voicedemo.core.utils.SharingProvider
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 
 private const val SETTINGS_VIEWMODEL = "SettingsViewModel"
@@ -70,8 +78,30 @@ class SettingsViewModel(application: Application) :
             }
 
             is SettingsContract.Event.OnTelecomManagerModeChanged -> {
-                telecomManager.setTelecomIntegrationMode(event.mode)
-                setState { copy(telecomManagerMode = event.mode) }
+                if (telecomManager.hasRequiredPermissionsFor(event.mode)) {
+                    applyTelecomIntegrationMode(event.mode)
+                } else {
+                    val permissions = buildList {
+                        if (event.mode != TelecomIntegrationMode.NO_INTEGRATION) {
+                            add(Manifest.permission.READ_PHONE_STATE)
+                        }
+                        if (event.mode == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE) {
+                            add(Manifest.permission.CALL_PHONE)
+                        }
+                    }
+                    requestPermissions(permissions) { result ->
+                        if (result == RequestPermissionsResult.GRANTED_ALL && telecomManager.hasRequiredPermissionsFor(event.mode)) {
+                            applyTelecomIntegrationMode(event.mode)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                R.string.telecom_permissions_required,
+                                Toast.LENGTH_LONG
+                            ).show()
+                            applyTelecomIntegrationMode(TelecomIntegrationMode.NO_INTEGRATION)
+                        }
+                    }
+                }
             }
 
             is SettingsContract.Event.OnSipTracesChanged -> {
@@ -141,9 +171,50 @@ class SettingsViewModel(application: Application) :
         }
     }
 
+    private fun applyTelecomIntegrationMode(mode: TelecomIntegrationMode) {
+        viewModelScope.launch {
+            val previousMode = telecomManager.telecomManagerIntegrationMode()
+            var targetMode = mode
+            try {
+                telecomManager.setTelecomIntegrationMode(targetMode)
+            } catch (e: SecurityException) {
+                Toast.makeText(
+                    context,
+                    R.string.telecom_permissions_required,
+                    Toast.LENGTH_LONG
+                ).show()
+                targetMode = TelecomIntegrationMode.NO_INTEGRATION
+                telecomManager.setTelecomIntegrationMode(targetMode)
+            }
+
+            val confirmedMode = withTimeoutOrNull(2_000L) {
+                waitForTelecomIntegrationMode(previousMode, targetMode)
+            }
+            val actualMode = confirmedMode ?: telecomManager.telecomManagerIntegrationMode()
+
+            // Only replace the requested setting when the SDK confirms its resulting mode.
+            if (confirmedMode != null) {
+                SettingsRepository(context).setTelecomManagerMode(actualMode)
+            }
+            setState { copy(telecomManagerMode = actualMode) }
+        }
+    }
+
+    private suspend fun waitForTelecomIntegrationMode(
+        previousMode: TelecomIntegrationMode,
+        requestedMode: TelecomIntegrationMode
+    ): TelecomIntegrationMode {
+        while (true) {
+            val currentMode = telecomManager.telecomManagerIntegrationMode()
+            if (currentMode != previousMode || currentMode == requestedMode) {
+                return currentMode
+            }
+            delay(50L)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         viewModelScope.coroutineContext.cancel()
     }
 }
-

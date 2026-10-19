@@ -24,8 +24,8 @@ abstract class BaseActivity : ComponentActivity() {
     protected fun requestPermissions(permissions: List<String>, onResult: (state: RequestPermissionsResult) -> Unit = {}) {
         if(permissions.all { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
             onResult(RequestPermissionsResult.GRANTED_ALL)
-        } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
-            onResult(RequestPermissionsResult.GRANTED_ANY)
+//        } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
+//            onResult(RequestPermissionsResult.GRANTED_ANY)
         } else {
             requestPermissionsHelper.request(permissions, onResult)
         }

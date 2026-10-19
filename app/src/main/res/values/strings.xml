@@ -18,6 +18,7 @@
     <string name="go_to_call">Go to call</string>
     <string name="calls_card_accet_call">Accept</string>
     <string name="calls_card_resume_call">Resume</string>
+    <string name="calls_card_terminate_call">Terminate</string>
     <string name="button_mute_call">Mute</string>
     <string name="button_hold_call">Hold</string>
     <string name="button_resume_call">Resume</string>
@@ -36,6 +37,7 @@
     <string name="navigation_ongoing_call_control">Control</string>
     <string name="dialer_toast_activate">Activate your account</string>
     <string name="dialer_toast_enter_number">Enter number</string>
+    <string name="telecom_permissions_required">Required phone permissions are missing. Telecom Framework integration is disabled until they are granted.</string>
     <string name="registration_status_not_registered">Not registered</string>
     <string name="default_token">No token received</string>
     <string name="deactivate_button">Deactivate</string>

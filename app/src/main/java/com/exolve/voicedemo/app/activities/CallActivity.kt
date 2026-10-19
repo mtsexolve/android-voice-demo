@@ -2,16 +2,13 @@ package com.exolve.voicedemo.app.activities
 
 import android.Manifest
 import android.content.Intent
-import android.database.Cursor
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.util.Log
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +43,7 @@ import com.exolve.voicedemo.features.call.OngoingCallScreen
 import com.exolve.voicedemo.features.dialer.DialerContract
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+import com.exolve.voicedemo.core.utils.Utils
 import com.exolve.voicesdk.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,7 +67,11 @@ class CallActivity : BaseActivity() {
 
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            handleContactResult(result)
+            Utils.getNumberFromResult(applicationContext, result, CALL_ACTIVITY)?.let {
+                dialerViewModel.setState {
+                    copy(dialerText = it)
+                }
+            }
         }
 
     private fun processCallIntent(intent: Intent) {
@@ -252,37 +254,5 @@ class CallActivity : BaseActivity() {
             "startActivity for get contact with intent = $intent"
         )
         getContactResult.launch(intent)
-    }
-
-    private fun handleContactResult(contactResult: ActivityResult) {
-        if (contactResult.resultCode == RESULT_OK) {
-            Log.d(CALL_ACTIVITY, "handleContactResult: Result is OK")
-            val cursor: Cursor? = contactResult.data?.data?.let { uri ->
-                applicationContext.contentResolver.query(
-                    uri,
-                    null,
-                    null,
-                    null,
-                    null
-                )
-            }
-            if (cursor != null && cursor.moveToFirst()) {
-                val numberColumnIndex: Int =
-                    cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val number: String = cursor.getString(numberColumnIndex)
-                cursor.close()
-                // Show results
-                dialerViewModel.setState {
-                    copy(dialerText = number)
-                }
-            } else {
-                Log.d(
-                    CALL_ACTIVITY,
-                    "handleContactResult: invalid cursor"
-                )
-            }
-        } else {
-            Log.d(CALL_ACTIVITY, "handleContactResult: Result is not OK")
-        }
     }
 }

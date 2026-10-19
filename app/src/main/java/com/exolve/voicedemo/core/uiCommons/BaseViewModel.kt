@@ -79,8 +79,8 @@ abstract class BaseViewModel<Event : UiEvent, State : UiState, Effect : UiEffect
     ) {
         if(permissions.all { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
             onResult(RequestPermissionsResult.GRANTED_ALL)
-        } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
-            onResult(RequestPermissionsResult.GRANTED_ANY)
+//        } else if(permissions.any { ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED } ) {
+//            onResult(RequestPermissionsResult.GRANTED_ANY)
         } else {
             viewModelScope.launch {
                 val deferred = CompletableDeferred<List<PermissionState>>()

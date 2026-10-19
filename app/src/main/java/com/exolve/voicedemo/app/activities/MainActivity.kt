@@ -3,17 +3,15 @@ package com.exolve.voicedemo.app.activities
 import android.Manifest
 import android.app.NotificationManager
 import android.content.Intent
-import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
-import androidx.activity.ComponentActivity
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -34,6 +32,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.exolve.voicedemo.R
 import com.exolve.voicedemo.app.navigation.BottomNavigationDestinations
 import com.exolve.voicedemo.core.uiCommons.interfaces.UiEvent
 import com.exolve.voicedemo.core.uiCommons.theme.AndroidVoiceExampleTheme
@@ -47,6 +46,9 @@ import com.exolve.voicedemo.features.dialer.DialerScreen
 import com.exolve.voicedemo.features.dialer.DialerViewModel
 import com.exolve.voicedemo.features.settings.*
 import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
+import com.exolve.voicedemo.core.repositories.SettingsRepository
+import com.exolve.voicedemo.core.telecom.TelecomManager
+import com.exolve.voicesdk.TelecomIntegrationMode
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +63,11 @@ class MainActivity : BaseActivity() {
 
     private val getContactResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            handleContactResult(result)
+            Utils.getNumberFromResult(applicationContext, result, MAIN_ACTIVITY)?.let {
+                dialerViewModel.setState {
+                    copy(dialerText = it)
+                }
+            }
         }
 
     private fun startActivityForGetContact() {
@@ -72,31 +78,6 @@ class MainActivity : BaseActivity() {
             MAIN_ACTIVITY, "startActivity for get contact with intent $intent"
         )
         getContactResult.launch(intent)
-    }
-
-    private fun handleContactResult(contactResult: ActivityResult) {
-        if (contactResult.resultCode == RESULT_OK) {
-            Log.d(MAIN_ACTIVITY, "handleContactResult: Result is OK")
-            val cursor: Cursor? = contactResult.data?.data?.let { uri ->
-                applicationContext.contentResolver.query(uri, null, null, null, null)
-            }
-            if (cursor != null && cursor.moveToFirst()) {
-                val numberColumnIndex: Int =
-                    cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val number: String = cursor.getString(numberColumnIndex)
-                cursor.close()
-                // Show results
-                dialerViewModel.setState {
-                    copy(dialerText = number)
-                }
-            } else {
-                Log.d(
-                    MAIN_ACTIVITY, "handleContactResult: invalid cursor"
-                )
-            }
-        } else {
-            Log.d(MAIN_ACTIVITY, "handleContactResult: Result is not OK")
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -150,30 +131,40 @@ class MainActivity : BaseActivity() {
     }
 
     private fun requestOnCreatePermissions() {
-        var permissions = listOf(
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.CALL_PHONE,
-            Manifest.permission.RECORD_AUDIO,
+        val permissions = mutableListOf(
             (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 Manifest.permission.BLUETOOTH_CONNECT
             else
                 Manifest.permission.BLUETOOTH)
         )
+
+        val integrationMode = SettingsRepository(applicationContext).getTelecomManagerMode()
+        if (integrationMode == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE) {
+            permissions += Manifest.permission.CALL_PHONE
+        }
+        if (integrationMode != TelecomIntegrationMode.NO_INTEGRATION) {
+            permissions += Manifest.permission.READ_PHONE_STATE
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions += Manifest.permission.POST_NOTIFICATIONS
         }
 
         requestPermissions(
-            permissions,
-            { result ->
-                when (result) {
-                    RequestPermissionsResult.GRANTED_ALL -> {
-                        Log.i(MAIN_ACTIVITY, "onCreate permissions granted")
-                    }
-                    else -> {}
-                }
+            permissions
+        ) { result ->
+            val telecomManager = TelecomManager.getInstance()
+            telecomManager.applySavedTelecomIntegrationMode()
+            if (!telecomManager.hasRequiredPermissionsFor(integrationMode)) {
+                Toast.makeText(this, R.string.telecom_permissions_required, Toast.LENGTH_LONG).show()
             }
-        )
+            when (result) {
+                RequestPermissionsResult.GRANTED_ALL -> {
+                    Log.i(MAIN_ACTIVITY, "onCreate permissions granted")
+                }
+                else -> {}
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // API >= 34

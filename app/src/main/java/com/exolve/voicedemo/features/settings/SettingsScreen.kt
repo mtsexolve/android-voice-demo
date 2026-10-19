@@ -259,7 +259,6 @@ fun OptionTelecomIntegration(
         )
 
         var expanded by remember { mutableStateOf(false) }
-        var selectedOption by remember { mutableStateOf(telecomManagerMode.name) }
         val options = TelecomIntegrationMode.entries.map { it.name }
 
         Box(
@@ -268,7 +267,7 @@ fun OptionTelecomIntegration(
                 .clickable { expanded = true }
         ) {
             Text(
-                text = selectedOption,
+                text = telecomManagerMode.name,
                 modifier = Modifier.padding(8.dp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -285,7 +284,6 @@ fun OptionTelecomIntegration(
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(onClick = {
-                        selectedOption = option
                         expanded = false
                         onEvent(
                             SettingsContract.Event.OnTelecomManagerModeChanged(

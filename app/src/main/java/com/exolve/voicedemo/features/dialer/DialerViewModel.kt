@@ -14,6 +14,7 @@ import com.exolve.voicedemo.core.telecom.TelecomContract.CallEvent
 import com.exolve.voicedemo.core.permissions.RequestPermissionsResult
 import com.exolve.voicesdk.RegistrationMode
 import com.exolve.voicesdk.RegistrationState
+import com.exolve.voicesdk.TelecomIntegrationMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -80,19 +81,20 @@ class DialerViewModel(application: Application) :
                add(Manifest.permission.ACCESS_FINE_LOCATION)
                add(Manifest.permission.ACCESS_COARSE_LOCATION)
             }
+            if (settingsRepository.getTelecomManagerMode() != TelecomIntegrationMode.NO_INTEGRATION) {
+                add(Manifest.permission.READ_PHONE_STATE)
+            }
+            if (settingsRepository.getTelecomManagerMode() == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE) {
+                add(Manifest.permission.CALL_PHONE)
+            }
         }
 
-        requestPermissions(
-            permissions,
-            { result ->
-                when (result) {
-                    RequestPermissionsResult.GRANTED_ALL -> {
-                        placeCall(uiState.value.dialerText)
-                    }
-                    else -> {}
-                }
+        requestPermissions(permissions) {
+            if (telecomManager.hasReadPhoneStatePermission()) {
+                telecomManager.applySavedTelecomIntegrationMode()
             }
-        )
+            placeCall(uiState.value.dialerText)
+        }
     }
 
     private fun removeDigits(onLongClicked: Boolean) {

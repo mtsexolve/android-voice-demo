@@ -65,7 +65,7 @@ class CallContract {
         @Immutable data class OnAcceptCallButtonClicked(val callsId: String) : Event()
         @Immutable data class OnResumeButtonClicked(val callsId: String) : Event()
         @Immutable data class OnTerminateCurrentButtonClicked(val callsId: String) : Event()
-        @Immutable object OnTerminateAllButtonClicked : Event()
+        @Immutable object OnTerminateCallButtonClicked : Event()
         @Immutable data class OnHoldButtonClicked(val callsId: String) : Event()
         @Immutable data class OnAudioRouteSelect(val route: AudioRoute) : Event()
         @Immutable object OnMuteButtonClicked : Event()

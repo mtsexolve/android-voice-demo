@@ -1,6 +1,7 @@
 package com.exolve.voicedemo.core.telecom
 
 import android.app.Application
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,8 +9,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.content.pm.PackageManager
 import android.text.TextUtils
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.exolve.voicedemo.R
 import com.exolve.voicedemo.app.activities.CallActivity
 import com.exolve.voicedemo.app.activities.MainActivity
@@ -71,11 +74,10 @@ class TelecomManager(private var context: Application) {
         .logConfiguration(LogConfiguration.builder().logLevel(logLevel()).build())
         .useSecureConnection(isEncryptionEnabled())
         .enableSipTrace(isSipTracesEnabled())
-        .enableStun(isStunNeeded())
         .enableNotifications(true)
         .enableRingtone(true)
         .enableDetectLocation(SettingsRepository(context).isDetectLocationEnabled())
-        .telecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
+        .telecomIntegrationMode(effectiveTelecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode()))
         .notificationConfiguration(getNotificationConfiguration())
         .build()
 
@@ -140,6 +142,9 @@ class TelecomManager(private var context: Application) {
             setRegistrationListener(RegistrationListener(this@TelecomManager, context), context.mainLooper)
             setAudioRouteListener(AudioRouteListener(this@TelecomManager), context.mainLooper)
             setCredentialsProvider(CredentialsProvider(SettingsRepository(context)), context.mainLooper)
+            if (hasReadPhoneStatePermission()) {
+                Log.i(TELECOM_MANAGER, "PhoneAccount enabled: ${communicator.configurationManager.isPhoneAccountEnabled}")
+            }
         }
     }
 
@@ -340,23 +345,42 @@ class TelecomManager(private var context: Application) {
     }
 
     fun setTelecomIntegrationMode(mode: TelecomIntegrationMode) {
-        communicator.configurationManager.telecomIntegrationMode = mode
-        SettingsRepository(context).setTelecomManagerMode(mode)
-        if (mode == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE && mode != telecomManagerIntegrationMode()) {
+        val effectiveMode = effectiveTelecomIntegrationMode(mode)
+        SettingsRepository(context).setTelecomManagerMode(effectiveMode)
+        val previousMode = telecomManagerIntegrationMode()
+        if (effectiveMode != previousMode) {
+            communicator.configurationManager.telecomIntegrationMode = effectiveMode
+        }
+        if (effectiveMode == TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE && previousMode != effectiveMode) {
             PendingIntent.getActivity(context, 0,
                 Intent(android.telecom.TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS),
                 PendingIntent.FLAG_IMMUTABLE).send()
         }
     }
 
-    fun isSipTracesEnabled(): Boolean {
-        return SettingsRepository(context).isSipTracesEnabled()
+    fun applySavedTelecomIntegrationMode() {
+        setTelecomIntegrationMode(SettingsRepository(context).getTelecomManagerMode())
     }
 
-    fun isStunNeeded(): Boolean {
-        return SettingsRepository(context).getEnvironment()?.let { env ->
-            "webrtc|dtls".toRegex(RegexOption.IGNORE_CASE).find(env) != null
-        } ?: false
+    fun hasReadPhoneStatePermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+
+    fun hasRequiredPermissionsFor(mode: TelecomIntegrationMode): Boolean =
+        (mode == TelecomIntegrationMode.NO_INTEGRATION || hasReadPhoneStatePermission()) &&
+                (mode != TelecomIntegrationMode.SYSTEM_MANAGED_SERVICE || hasCallPhonePermission())
+
+    private fun hasCallPhonePermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+
+    private fun effectiveTelecomIntegrationMode(mode: TelecomIntegrationMode): TelecomIntegrationMode =
+        if (!hasRequiredPermissionsFor(mode)) {
+            TelecomIntegrationMode.NO_INTEGRATION
+        } else {
+            mode
+        }
+
+    fun isSipTracesEnabled(): Boolean {
+        return SettingsRepository(context).isSipTracesEnabled()
     }
 
     fun setSipTracesEnabled(enabled: Boolean) {
